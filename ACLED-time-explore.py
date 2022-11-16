@@ -25,7 +25,7 @@ def get_data(keys, cnty_code, year_lst):
     )
     
     # sudan country code
-    df = table.filter(df.CountryFK==cnty_code) 
+    df = df.filter(df.CountryFK==cnty_code) 
     df = df.toPandas()
     # create year-month column
     df['YearMonth'] = df['TimeFK_Event_Date'].apply(lambda x: str(x)[:4] + '-' + str(x)[4:6])    
@@ -38,7 +38,7 @@ def get_data(keys, cnty_code, year_lst):
 
 # COMMAND ----------
 
-df, df_sub = get_data(keys, ['2020','2021','2022'])
+df, df_sub = get_data(keys, 214, ['2020','2021','2022'])
 
 # COMMAND ----------
 
@@ -135,40 +135,37 @@ mon_dat = get_months_since_df(df, [1, 5, 50], 'YearMonth', 'ACLED_Admin1', 'ACLE
 
 # COMMAND ----------
 
-X = pd.concat([counts, fatal, mon_dat], axis=1)
-X.fillna(0, inplace=True)
+def get_xy_df(data_lst, date_col, admin_col, outcome_col, agg_func):
+    X = pd.concat(data_lst, axis=1)
+    X.fillna(0, inplace=True) 
+    y = df_sub.groupby([date_col, admin_col]).agg({outcome_col: agg_func})
+    Xy = pd.concat([X, y], axis=1)
+    Xy[outcome_col].fillna(0, inplace=True)
+    Xy.dropna(how='any', inplace=True) 
+    X = Xy.drop(outcome_col, axis=1)
+    y = Xy[outcome_col]
+    return X, y
+
+def split_train_test(X, y, prop):
+    time_units = X.index.unique(level=0)
+    idx = round(len(time_units) * prop)
+    train_times = time_units[:idx]
+    test_times = [t for t in time_units if t not in train_times]
+    
+    X_train = X.loc[train_times, :]
+    X_test = X.loc[test_times, :]
+    y_train = y.loc[train_times]
+    y_test = y.loc[test_times]
+    return X_train, X_test, y_train, y_test
+    
 
 # COMMAND ----------
 
-y = df_sub.groupby(['YearMonth', 'ACLED_Admin1']).agg({'ACLED_Fatalities': 'sum'})
-y = pd.concat([X, y], axis=1)['ACLED_Fatalities']
-y.fillna(0, inplace=True)
+X, y = get_xy_df([counts, fatal, mon_dat], 'YearMonth', 'ACLED_Admin1', 'ACLED_Fatalities', 'sum')
 
 # COMMAND ----------
 
-idy = [i for i in y.index if i[0] not in ['2020-01', '2020-02', '2020-03']]
-
-# COMMAND ----------
-
-y = y.loc[idy]
-
-# COMMAND ----------
-
-X.to_csv('/dbfs/FileStore/df/sudan.csv')
-
-# COMMAND ----------
-
-X_train = X.iloc[:506, :]
-X_test = X.iloc[506:, :]
-
-y_train = y.iloc[:506]
-y_test = y.iloc[506:]
-
-# COMMAND ----------
-
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.metrics import r2_score,mean_squared_error
-import seaborn as sns
+X_train, X_test, y_train, y_test = split_train_test(X, y, .7)
 
 # COMMAND ----------
 
@@ -177,10 +174,9 @@ import seaborn as sns
 
 # COMMAND ----------
 
-from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.metrics import r2_score, mean_squared_error
 from sklearn.model_selection import GridSearchCV
-from sklearn.metrics import mean_squared_error
-from sklearn.metrics import r2_score
 from skopt import BayesSearchCV 
 import xgboost as xgb
 import warnings
@@ -219,37 +215,13 @@ model, predictions, results = fit_model(X_train, y_train, params, 50)
 
 # COMMAND ----------
 
-predictions
-
-# COMMAND ----------
-
 # print("CV-test RMSE:", np.sqrt(model.best_score_))
 print("pred RMSE:", np.sqrt(mean_squared_error(y_test, predictions)))
 print("pred R2:", r2_score(y_test, predictions))
 
 # COMMAND ----------
 
-import matplotlib.pyplot as plt
-x = ['2022-03',
- '2022-04',
- '2022-05',
- '2022-06',
- '2022-07',
- '2022-08',
- '2022-09',
- '2022-10']
-for admin in df.ACLED_Admin1.unique():
-    actual = []
-    pred = []
-    mx = [x for x in p.index if x[1]==admin]
-    for m in mx:
-        actual.append(p.loc[m, 'actual'])
-        pred.append(p.loc[m, 'pred'])
-
-    plt.plot(x, actual)
-    plt.plot(x, pred, '-.')
-    plt.title(admin)
-    plt.show()
+plt.scatter(y_test, predictions)
 
 # COMMAND ----------
 
