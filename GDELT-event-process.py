@@ -15,9 +15,37 @@ from pyspark.sql.functions import coalesce
 
 ######## CHANGE THIS! ########
 # Process one country at a time
-CO = 'SU'
-CO_ACLED_NO = 214
-SHAPEFILE = '/dbfs/FileStore/df/shapefiles/sudan_adm1/sdn_admbnda_adm1_cbs_nic_ssa_20200831.shp'
+CO = 'DJ'
+CO_ACLED_NO = 97
+SHAPEFILE = '/dbfs/FileStore/df/shapefiles/djibouti_adm1/dji_admbnda_gadm_adm1_2022.shp'
+
+# CO = 'ER'
+# CO_ACLED_NO = 104
+# SHAPEFILE = '/dbfs/FileStore/df/shapefiles/eritrea_adm1/eri_admbnda_adm1_gov_20200427.shp'
+
+# CO = 'ET'
+# CO_ACLED_NO = 108
+# SHAPEFILE = '/dbfs/FileStore/df/shapefiles/ethiopia_adm1/eth_admbnda_adm1_csa_bofedb_2021.shp'
+
+# CO = 'KE'
+# CO_ACLED_NO = 175
+# SHAPEFILE = '/dbfs/FileStore/df/shapefiles/kenya_adm1/ken_admbnda_adm1_iebc_20191031.shp'
+
+# CO = 'SO'
+# CO_ACLED_NO = 224
+# SHAPEFILE = '/dbfs/FileStore/df/shapefiles/somalia_adm1/som_admbnda_adm1_ocha_20230308.shp'
+
+# CO = 'OD'
+# CO_ACLED_NO = 227
+# SHAPEFILE = '/dbfs/FileStore/df/shapefiles/southsudan_adm1/ssd_admbnda_adm1_imwg_nbs_20221219.shp'
+
+# CO = 'SU'
+# CO_ACLED_NO = 214
+# SHAPEFILE = '/dbfs/FileStore/df/shapefiles/sudan_adm1/sdn_admbnda_adm1_cbs_nic_ssa_20200831.shp'
+
+# CO = 'UG'
+# CO_ACLED_NO = 235
+# SHAPEFILE = '/dbfs/FileStore/df/shapefiles/uganda_adm1/uga_admbnda_adm1_ubos_20200824.shp'
 
 # database and table
 DATABASE_NAME = 'news_media'
@@ -98,7 +126,12 @@ key_gdf = key_gdf.loc[:, ['ADM1_EN', 'ADMIN1']]
 
 ######## CHECK HERE! ########
 # check that all admins are covered in the shapefile
-assert len([k for k in list(key_df['ADMIN1']) if k not in list(key_gdf['ADMIN1'])]) == 0, ('Some admins are not in the shapefile!')
+not_in_shp = [k for k in list(key_df['ADMIN1']) if k not in list(key_gdf['ADMIN1'])]
+assert len(not_in_shp) == 0, ('Some admins are not in the shapefile!')
+
+# COMMAND ----------
+
+not_in_shp
 
 # COMMAND ----------
 
@@ -106,6 +139,10 @@ assert len([k for k in list(key_df['ADMIN1']) if k not in list(key_gdf['ADMIN1']
 # check that there are not duplicate admins
 dup_adm = list(key_gdf[key_gdf.duplicated('ADM1_EN')]['ADM1_EN'])
 assert len(dup_adm) == 0, ('Some admins are duplicated in the shapefile! check dup_adm!')
+
+# COMMAND ----------
+
+dup_adm
 
 # COMMAND ----------
 
