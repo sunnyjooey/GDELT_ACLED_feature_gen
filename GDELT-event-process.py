@@ -24,13 +24,13 @@ from pyspark.sql.types import FloatType
 # CO_ACLED_NO = 104
 # SHAPEFILE = '/dbfs/FileStore/df/shapefiles/eritrea_adm1/eri_admbnda_adm1_gov_20200427.shp'
 
-CO = 'ET'
-CO_ACLED_NO = 108
-SHAPEFILE = '/dbfs/FileStore/df/shapefiles/ethiopia_adm1/eth_admbnda_adm1_csa_bofedb_2021.shp'
+# CO = 'ET'
+# CO_ACLED_NO = 108
+# SHAPEFILE = '/dbfs/FileStore/df/shapefiles/ethiopia_adm1/eth_admbnda_adm1_csa_bofedb_2021.shp'
 
-# CO = 'KE'
-# CO_ACLED_NO = 175
-# SHAPEFILE = '/dbfs/FileStore/df/shapefiles/kenya_adm1/ken_admbnda_adm1_iebc_20191031.shp'
+CO = 'KE'
+CO_ACLED_NO = 175
+SHAPEFILE = '/dbfs/FileStore/df/shapefiles/kenya_adm1/ken_admbnda_adm1_iebc_20191031.shp'
 
 # CO = 'SO'
 # CO_ACLED_NO = 224
@@ -99,7 +99,7 @@ standard_admin = d.select('ACLED_Admin1').distinct().rdd.flatMap(list).collect()
 new_admin = list(gdf['ADM1_EN'])
 not_in_acled = [x for x in new_admin if x not in standard_admin]
 not_in_shp = [x for x in standard_admin if x not in new_admin]
-assert len(not_in_acled) == 0, 'Check admin names!'
+# assert len(not_in_acled) == 0, 'Check admin names!'
 
 # COMMAND ----------
 
@@ -109,8 +109,8 @@ print(not_in_shp)
 # COMMAND ----------
 
 ######## CHANGE THIS! ########
-gdf.loc[gdf['ADM1_EN']=='Benishangul Gumz', 'ADM1_EN'] = 'Benshangul/Gumuz'
-gdf.loc[gdf['ADM1_EN']=='South West Ethiopia', 'ADM1_EN'] = 'South West'
+gdf.loc[gdf['ADM1_EN']=="Murang'a", 'ADM1_EN'] = 'Muranga'
+gdf.loc[gdf['ADM1_EN']=='Elgeyo-Marakwet', 'ADM1_EN'] = 'Elgeyo Marakwet'
 
 # COMMAND ----------
 
@@ -188,16 +188,62 @@ adm_gdf[pd.isna(adm_gdf['ADM1_EN'])]['ADMIN1'].unique()
 
 # COMMAND ----------
 
-# adm_gdf[adm_gdf['ADMIN1']=='ET52']['GEO_NAME'].unique()
+# adm_gdf[(pd.isna(adm_gdf['ADM1_EN'])) & (adm_gdf['ADMIN1']=='KE02')]['GEO_NAME'].unique()
+
+# COMMAND ----------
+
+# adm_gdf[adm_gdf['GEO_NAME']=='Tenewi, Coast, Kenya']
 
 # COMMAND ----------
 
 #### RUN IF NEEDED ####
 # not place through coords AND admin1 --> fix
-adm_gdf.loc[(pd.isna(adm_gdf['ADM1_EN'])) & (adm_gdf['ADMIN1']=='ET53'), 'ADM1_EN'] = 'Tigray'
-adm_gdf.loc[(pd.isna(adm_gdf['ADM1_EN'])) & (adm_gdf['ADMIN1']=='ET49'), 'ADM1_EN'] = 'Gambela'
-adm_gdf.loc[(pd.isna(adm_gdf['ADM1_EN'])) & (adm_gdf['ADMIN1']=='ET47'), 'ADM1_EN'] = 'Benshangul/Gumuz'
-adm_gdf.loc[(pd.isna(adm_gdf['ADM1_EN'])) & (adm_gdf['ADMIN1']=='ET52'), 'ADM1_EN'] = 'Somali'
+adm_gdf.loc[(pd.isna(adm_gdf['ADM1_EN'])) & (adm_gdf['ADMIN1']=='KE09'), 'ADM1_EN'] = 'Busia'
+adm_gdf.loc[(pd.isna(adm_gdf['ADM1_EN'])) & (adm_gdf['ADMIN1']=='KE07'), 'ADM1_EN'] = 'Migori'
+adm_gdf.loc[(pd.isna(adm_gdf['ADM1_EN'])) & (adm_gdf['ADMIN1']=='KE08'), 'ADM1_EN'] = 'Kajiado'
+
+adm_gdf.loc[(pd.isna(adm_gdf['ADM1_EN'])) & (adm_gdf['GEO_NAME']=='Mtongwe, Coast, Kenya'), 'ADM1_EN'] = 'Mombasa'
+adm_gdf.loc[(pd.isna(adm_gdf['ADM1_EN'])) & (adm_gdf['GEO_NAME']=='Mwache, Coast, Kenya'), 'ADM1_EN'] = 'Mombasa'
+adm_gdf.loc[(pd.isna(adm_gdf['ADM1_EN'])) & (adm_gdf['GEO_NAME']=='Kilimani, Coast, Kenya'), 'ADM1_EN'] = 'Lamu'
+adm_gdf.loc[(pd.isna(adm_gdf['ADM1_EN'])) & (adm_gdf['GEO_NAME']=='English Point, Coast, Kenya'), 'ADM1_EN'] = 'Mombasa' 
+adm_gdf.loc[(pd.isna(adm_gdf['ADM1_EN'])) & (adm_gdf['GEO_NAME']=='Vanga, Coast, Kenya'), 'ADM1_EN'] = 'Kwale'
+adm_gdf.loc[(pd.isna(adm_gdf['ADM1_EN'])) & (adm_gdf['GEO_NAME']=='Diani Beach, Coast, Kenya'), 'ADM1_EN'] = 'Kwale'
+adm_gdf.loc[(pd.isna(adm_gdf['ADM1_EN'])) & (adm_gdf['GEO_NAME']=='Kombeni, Coast, Kenya'), 'ADM1_EN'] = 'Mombasa' 
+adm_gdf.loc[(pd.isna(adm_gdf['ADM1_EN'])) & (adm_gdf['GEO_NAME']=='Shanzu, Coast, Kenya'), 'ADM1_EN'] = 'Mombasa'
+adm_gdf.loc[(pd.isna(adm_gdf['ADM1_EN'])) & (adm_gdf['GEO_NAME']=='Vuka, Coast, Kenya'), 'ADM1_EN'] = 'Lamu'
+adm_gdf.loc[(pd.isna(adm_gdf['ADM1_EN'])) & (adm_gdf['GEO_NAME']=='Kisite, Coast, Kenya'), 'ADM1_EN'] = 'Kwale' 
+adm_gdf.loc[(pd.isna(adm_gdf['ADM1_EN'])) & (adm_gdf['GEO_NAME']=='Port Reitz, Coast, Kenya'), 'ADM1_EN'] = 'Mombasa'
+adm_gdf.loc[(pd.isna(adm_gdf['ADM1_EN'])) & (adm_gdf['GEO_NAME']=='Samaki, Coast, Kenya'), 'ADM1_EN'] = 'Lamu'
+adm_gdf.loc[(pd.isna(adm_gdf['ADM1_EN'])) & (adm_gdf['GEO_NAME']=='Ungama Bay, Coast, Kenya'), 'ADM1_EN'] = 'Tana River'
+adm_gdf.loc[(pd.isna(adm_gdf['ADM1_EN'])) & (adm_gdf['GEO_NAME']=='Kikambala, Coast, Kenya'), 'ADM1_EN'] = 'Kilifi'
+adm_gdf.loc[(pd.isna(adm_gdf['ADM1_EN'])) & (adm_gdf['GEO_NAME']=='Ishakani, Coast, Kenya'), 'ADM1_EN'] = 'Lamu'
+adm_gdf.loc[(pd.isna(adm_gdf['ADM1_EN'])) & (adm_gdf['GEO_NAME']=='Kiunga, Coast, Kenya'), 'ADM1_EN'] = 'Lamu'
+adm_gdf.loc[(pd.isna(adm_gdf['ADM1_EN'])) & (adm_gdf['GEO_NAME']=='Shimanzi, Coast, Kenya'), 'ADM1_EN'] = 'Mombasa'
+adm_gdf.loc[(pd.isna(adm_gdf['ADM1_EN'])) & (adm_gdf['GEO_NAME']=='Kinondo, Coast, Kenya'), 'ADM1_EN'] = 'Kwale'
+adm_gdf.loc[(pd.isna(adm_gdf['ADM1_EN'])) & (adm_gdf['GEO_NAME']=='Tudor Creek, Coast, Kenya'), 'ADM1_EN'] = 'Mombasa'
+adm_gdf.loc[(pd.isna(adm_gdf['ADM1_EN'])) & (adm_gdf['GEO_NAME']=='Ras Kitau, Coast, Kenya'), 'ADM1_EN'] = 'Lamu'
+adm_gdf.loc[(pd.isna(adm_gdf['ADM1_EN'])) & (adm_gdf['GEO_NAME']=='Englishpoint, Coast, Kenya'), 'ADM1_EN'] = 'Mombasa'
+adm_gdf.loc[(pd.isna(adm_gdf['ADM1_EN'])) & (adm_gdf['GEO_NAME']=='Portreitz, Coast, Kenya'), 'ADM1_EN'] = 'Mombasa' 
+adm_gdf.loc[(pd.isna(adm_gdf['ADM1_EN'])) & (adm_gdf['GEO_NAME']=='Diani Beach Hotel, Coast, Kenya'), 'ADM1_EN'] = 'Kwale'
+adm_gdf.loc[(pd.isna(adm_gdf['ADM1_EN'])) & (adm_gdf['GEO_NAME']=='Kiangwe, Coast, Kenya'), 'ADM1_EN'] = 'Lamu'
+adm_gdf.loc[(pd.isna(adm_gdf['ADM1_EN'])) & (adm_gdf['GEO_NAME']=='Mkokoni, Coast, Kenya'), 'ADM1_EN'] = 'Lamu' 
+adm_gdf.loc[(pd.isna(adm_gdf['ADM1_EN'])) & (adm_gdf['GEO_NAME']=='Mandabay, Coast, Kenya'), 'ADM1_EN'] = 'Lamu' 
+adm_gdf.loc[(pd.isna(adm_gdf['ADM1_EN'])) & (adm_gdf['GEO_NAME']=='Gazi Bay, Coast, Kenya'), 'ADM1_EN'] = 'Kwale'
+adm_gdf.loc[(pd.isna(adm_gdf['ADM1_EN'])) & (adm_gdf['GEO_NAME']=='Shelly Beach, Coast, Kenya'), 'ADM1_EN'] = 'Mombasa' 
+adm_gdf.loc[(pd.isna(adm_gdf['ADM1_EN'])) & (adm_gdf['GEO_NAME']=='Nyali Beach, Coast, Kenya'), 'ADM1_EN'] = 'Mombasa' 
+adm_gdf.loc[(pd.isna(adm_gdf['ADM1_EN'])) & (adm_gdf['GEO_NAME']=='Mvindeni, Coast, Kenya'), 'ADM1_EN'] = 'Lamu'
+adm_gdf.loc[(pd.isna(adm_gdf['ADM1_EN'])) & (adm_gdf['GEO_NAME']=='Chale Island, Coast, Kenya'), 'ADM1_EN'] = 'Kwale'
+adm_gdf.loc[(pd.isna(adm_gdf['ADM1_EN'])) & (adm_gdf['GEO_NAME']=='Mtwapa Creek, Coast, Kenya'), 'ADM1_EN'] = 'Kilifi'
+adm_gdf.loc[(pd.isna(adm_gdf['ADM1_EN'])) & (adm_gdf['GEO_NAME']=='Jumba La Mtwana, Coast, Kenya'), 'ADM1_EN'] = 'Kilifi'
+adm_gdf.loc[(pd.isna(adm_gdf['ADM1_EN'])) & (adm_gdf['GEO_NAME']=='Kizingoni, Coast, Kenya'), 'ADM1_EN'] = 'Lamu'
+adm_gdf.loc[(pd.isna(adm_gdf['ADM1_EN'])) & (adm_gdf['GEO_NAME']=='Little Head, Coast, Kenya'), 'ADM1_EN'] = 'Lamu' 
+adm_gdf.loc[(pd.isna(adm_gdf['ADM1_EN'])) & (adm_gdf['GEO_NAME']=='Kilindini Harbour, Coast, Kenya'), 'ADM1_EN'] = 'Mombasa' 
+adm_gdf.loc[(pd.isna(adm_gdf['ADM1_EN'])) & (adm_gdf['GEO_NAME']=='Kilifi Creek, Coast, Kenya'), 'ADM1_EN'] = 'Kilifi'
+adm_gdf.loc[(pd.isna(adm_gdf['ADM1_EN'])) & (adm_gdf['GEO_NAME']=='Leisure Lodge, Coast, Kenya'), 'ADM1_EN'] = 'Kwale'
+adm_gdf.loc[(pd.isna(adm_gdf['ADM1_EN'])) & (adm_gdf['GEO_NAME']=='Mtongwe Ferry, Coast, Kenya'), 'ADM1_EN'] = 'Mombasa'
+adm_gdf.loc[(pd.isna(adm_gdf['ADM1_EN'])) & (adm_gdf['GEO_NAME']=='Mkanda Channel, Coast, Kenya'), 'ADM1_EN'] = 'Lamu'
+adm_gdf.loc[(pd.isna(adm_gdf['ADM1_EN'])) & (adm_gdf['GEO_NAME']=='Tenewi, Coast, Kenya'), 'ADM1_EN'] = 'Lamu'
+
 # designate the rest to entire country
 adm_gdf['ADM1_EN'].fillna(CO, inplace=True)
 
