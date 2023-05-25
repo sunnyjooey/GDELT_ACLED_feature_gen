@@ -9,15 +9,15 @@ import geopandas as gpd
 import pandas as pd
 import numpy as np
 
-from pyspark.sql.functions import coalesce
+from pyspark.sql.functions import coalesce, to_timestamp, to_date
 
 # COMMAND ----------
 
 ######## CHANGE THIS! ########
 # Process one country at a time
-CO = 'DJ'
-CO_ACLED_NO = 97
-SHAPEFILE = '/dbfs/FileStore/df/shapefiles/djibouti_adm1/dji_admbnda_gadm_adm1_2022.shp'
+# CO = 'DJ' ### one admin 1 seems collapsed with capital
+# CO_ACLED_NO = 97
+# SHAPEFILE = '/dbfs/FileStore/df/shapefiles/djibouti_adm1/dji_admbnda_gadm_adm1_2022.shp'
 
 # CO = 'ER'
 # CO_ACLED_NO = 104
@@ -39,9 +39,9 @@ SHAPEFILE = '/dbfs/FileStore/df/shapefiles/djibouti_adm1/dji_admbnda_gadm_adm1_2
 # CO_ACLED_NO = 227
 # SHAPEFILE = '/dbfs/FileStore/df/shapefiles/southsudan_adm1/ssd_admbnda_adm1_imwg_nbs_20221219.shp'
 
-# CO = 'SU'
-# CO_ACLED_NO = 214
-# SHAPEFILE = '/dbfs/FileStore/df/shapefiles/sudan_adm1/sdn_admbnda_adm1_cbs_nic_ssa_20200831.shp'
+CO = 'SU'
+CO_ACLED_NO = 214
+SHAPEFILE = '/dbfs/FileStore/df/shapefiles/sudan_adm1/sdn_admbnda_adm1_cbs_nic_ssa_20200831.shp'
 
 # CO = 'UG'
 # CO_ACLED_NO = 235
