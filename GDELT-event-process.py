@@ -10,6 +10,7 @@ import pandas as pd
 import numpy as np
 
 from pyspark.sql.functions import coalesce, to_timestamp, to_date
+from pyspark.sql.types import FloatType
 
 # COMMAND ----------
 
@@ -39,9 +40,9 @@ from pyspark.sql.functions import coalesce, to_timestamp, to_date
 # CO_ACLED_NO = 227
 # SHAPEFILE = '/dbfs/FileStore/df/shapefiles/southsudan_adm1/ssd_admbnda_adm1_imwg_nbs_20221219.shp'
 
-CO = 'SU'
-CO_ACLED_NO = 214
-SHAPEFILE = '/dbfs/FileStore/df/shapefiles/sudan_adm1/sdn_admbnda_adm1_cbs_nic_ssa_20200831.shp'
+# CO = 'SU'
+# CO_ACLED_NO = 214
+# SHAPEFILE = '/dbfs/FileStore/df/shapefiles/sudan_adm1/sdn_admbnda_adm1_cbs_nic_ssa_20200831.shp'
 
 # CO = 'UG'
 # CO_ACLED_NO = 235
@@ -54,145 +55,12 @@ OUTPUT_TABLE_NAME = f'horn_africa_gdelt_events_{CO}_slv'
 
 # COMMAND ----------
 
-# events data
-events = spark.sql(f"SELECT * FROM {DATABASE_NAME}.{INPUT_TABLE_NAME}")
-
-# COMMAND ----------
-
-######## RATIONALE ########
-# 1. each row in the events dataframe is an event linked to a source-url
-# there can be multiple events in a source-url
-# we filter to root events only to exclude peripheral events
-# 2. each event has country locations for actor 1, actor 2, and action
-# which can be null
-# 3. we count an event as happening in-country 
-# once each for actor 1, actor 2, and action
-# this is to weight an event more if it is more relevant to the country
-# e.g. if an event's actor 1 and action are sudan and actor 2 is ethiopia
-# the event will count (be weighted) twice for sudan and once for ethiopia
-# 4. note in the example that an event can be relevant to more than one country
-# 5. in short, source-urls with more root events with more relevance to a country will be weighted more
-###########################
-
-
-# filter by actors and location
-events = events.filter((events.ActionGeo_CountryCode==CO) | (events.Actor1Geo_CountryCode==CO) | (events.Actor2Geo_CountryCode==CO))
-# filter to root events only 
-events = events.filter(events.IsRootEvent=='1')
-
-# make data long in chunks (stack)
-act1 = events.select('SQLDATE','SOURCEURL','Actor1Geo_FullName','Actor1Geo_ADM1Code','Actor1Geo_Lat','Actor1Geo_Long')
-act2 = events.select('SQLDATE','SOURCEURL','Actor2Geo_FullName','Actor2Geo_ADM1Code','Actor2Geo_Lat','Actor2Geo_Long')
-action = events.select('SQLDATE','SOURCEURL','ActionGeo_FullName','ActionGeo_ADM1Code','ActionGeo_Lat','ActionGeo_Long')
-cols = ['SQLDATE','SOURCEURL','GEO_NAME','ADMIN1', 'LAT','LON']
-act1 = act1.toDF(*cols)
-act2 = act2.toDF(*cols)
-action = action.toDF(*cols)
-long_df = act1.union(act2).union(action)
-
-#  keep only events in the country
-long_df = long_df.fillna('', subset=['ADMIN1'])
-long_df = long_df.filter(long_df.ADMIN1.startswith(CO))
-print(long_df.count())
-
-# COMMAND ----------
-
-######## METHOD ########
-# 1. we locate each row in long_df to its admin 1 level through merges
-# this is to avoid transforming pyspark to pandas and back again
-# 2. we do this by creating a key-dataframe with
-# admin 1 name, admin 1 code, and coordinates
-########################
-
-# make key of admin name and lat lon
-key_df = long_df.dropDuplicates(['ADMIN1'])
-key_df = key_df.toPandas()
-key_df = key_df.loc[key_df['ADMIN1']!=CO, ['ADMIN1', 'LAT', 'LON']]
-
-# COMMAND ----------
-
-# shapefile
+### sort out admin 1 names first ###
+# the shapefile
 gdf = gpd.read_file(SHAPEFILE)
 
 # COMMAND ----------
 
-# merge the key-dataframe with shapefile to get admin 1 names
-geometry = [Point(xy)  for xy in zip(key_df['LON'], key_df['LAT'])]
-key_gdf = gpd.GeoDataFrame(key_df, crs=gdf.crs, geometry=geometry)
-key_gdf = gpd.sjoin(gdf, key_gdf, how='inner', predicate='intersects', lsuffix='left', rsuffix='right')
-key_gdf = key_gdf.loc[:, ['ADM1_EN', 'ADMIN1']]
-
-# COMMAND ----------
-
-######## CHECK HERE! ########
-# check that all admins are covered in the shapefile
-not_in_shp = [k for k in list(key_df['ADMIN1']) if k not in list(key_gdf['ADMIN1'])]
-assert len(not_in_shp) == 0, ('Some admins are not in the shapefile!')
-
-# COMMAND ----------
-
-not_in_shp
-
-# COMMAND ----------
-
-######## CHECK HERE! ########
-# check that there are not duplicate admins
-dup_adm = list(key_gdf[key_gdf.duplicated('ADM1_EN')]['ADM1_EN'])
-assert len(dup_adm) == 0, ('Some admins are duplicated in the shapefile! check dup_adm!')
-
-# COMMAND ----------
-
-dup_adm
-
-# COMMAND ----------
-
-######## CHECK HERE! ########
-# duplicated admins
-key_gdf[key_gdf['ADM1_EN'].isin(dup_adm)]
-
-# COMMAND ----------
-
-######## CHANGE THIS! ########
-problem_code = 'SU00'
-# take out problem code from key-dataframe
-key_gdf = key_gdf[key_gdf['ADMIN1'] != problem_code]
-
-# COMMAND ----------
-
-### problem codes are not classified correctly ###
-### repeat the steps above to clean problem codes ###
-stragglers = long_df.filter(long_df.ADMIN1 == problem_code)
-stragglers = stragglers.toPandas()
-stragglers = stragglers[['GEO_NAME', 'ADMIN1', 'LAT', 'LON']]
-stragglers = stragglers.drop_duplicates()
-
-# COMMAND ----------
-
-# merge the straggler key-dataframe with shapefile
-geometry = [Point(xy)  for xy in zip(stragglers['LON'], stragglers['LAT'])]
-stragglers = gpd.GeoDataFrame(stragglers, crs=gdf.crs, geometry=geometry)
-strg_key_gdf = gpd.sjoin(gdf, stragglers, how='inner', predicate='intersects', lsuffix='left', rsuffix='right')
-# more wrangling - we cannot have duplicate column names when merging in pyspark
-strg_key_gdf = pd.merge(key_gdf, strg_key_gdf[['ADM1_EN','GEO_NAME']])
-strg_key_gdf.drop('ADM1_EN', axis=1, inplace=True)
-strg_key_gdf.columns = ['admin_1','geoname']
-strg_key_gdf['adm1'] = problem_code
-
-# COMMAND ----------
-
-# convert to pyspark and merge into long_df
-strg_key_gdf = sqlContext.createDataFrame(strg_key_gdf)
-long_df = long_df.join(strg_key_gdf, (long_df.GEO_NAME==strg_key_gdf.geoname) & (long_df.ADMIN1==strg_key_gdf.adm1), how='left')
-
-# COMMAND ----------
-
-# processing / cleaning
-long_df = long_df.withColumn('admin_1', coalesce(long_df.admin_1, long_df.ADMIN1)) 
-long_df = long_df.drop(*['geoname', 'adm1', 'ADMIN1'])
-
-# COMMAND ----------
-
-# here we make sure that the admin 1 names match
 # the outcome (ACLED) data
 
 from pyspark.sql import SparkSession
@@ -228,39 +96,102 @@ standard_admin = d.select('ACLED_Admin1').distinct().rdd.flatMap(list).collect()
 
 ######## CHECK HERE! ########
 # check that admin names are in the standard name list 
-new_admin = list(key_gdf['ADM1_EN'])
+new_admin = list(gdf['ADM1_EN'])
 wrong_name = [x for x in new_admin if x not in standard_admin]
+not_in_shp = [x for x in standard_admin if x not in new_admin]
 assert len(wrong_name) == 0, 'Check admin names!'
 
 # COMMAND ----------
 
-######## CHECK HERE! ########
-wrong_name
+print(wrong_name)
+print(not_in_shp)
 
 # COMMAND ----------
 
 ######## CHANGE THIS! ########
-key_gdf.loc[key_gdf['ADM1_EN']=='Aj Jazirah', 'ADM1_EN'] = 'Al Jazirah'
+gdf.loc[gdf['ADM1_EN']=='Aj Jazirah', 'ADM1_EN'] = 'Al Jazirah'
+gdf.loc[gdf['ADM1_EN']=='Abyei PCA', 'ADM1_EN'] = 'Abyei'
 
 # COMMAND ----------
 
-# change column names and convert to pyspark to merge
-key_gdf.columns = ['ADMIN1_NAME', 'adm1']
-key_gdf = sqlContext.createDataFrame(key_gdf)
+# events data
+events = spark.sql(f"SELECT * FROM {DATABASE_NAME}.{INPUT_TABLE_NAME}")
 
 # COMMAND ----------
 
-# merge for uniform admin names:)
-# NOTE: admin name will be null for rows pertaining to the entire country
-long_df = long_df.join(key_gdf, long_df['admin_1']==key_gdf['adm1'], how='left')
+######## RATIONALE ########
+# 1. each row in the events dataframe is an event linked to a source-url
+# there can be multiple events in a source-url
+# we filter to root events only to exclude peripheral events
+# 2. each event has country locations for actor 1, actor 2, and action
+# which can be null
+# 3. we count an event as happening in-country 
+# once each for actor 1, actor 2, and action
+# this is to weight an event more if it is more relevant to the country
+# e.g. if an event's actor 1 and action are sudan and actor 2 is ethiopia
+# the event will count (be weighted) twice for sudan and once for ethiopia
+# 4. note in the example that an event can be relevant to more than one country
+# 5. in short, source-urls with more root events with more relevance to a country will be weighted more
+###########################
 
-# processing / cleaning
-long_df = long_df.drop(*['GEO_NAME', 'LAT', 'LON', 'adm1'])
-long_df = long_df.withColumnRenamed('admin_1', 'ADMIN1_CODE')
+
+# filter by actors and location
+events = events.filter((events.ActionGeo_CountryCode==CO) | (events.Actor1Geo_CountryCode==CO) | (events.Actor2Geo_CountryCode==CO))
+# filter to root events only 
+events = events.filter(events.IsRootEvent=='1')
+
+# make data long in chunks (stack)
+act1 = events.select('DATEADDED','SOURCEURL','Actor1Geo_FullName','Actor1Geo_ADM1Code','Actor1Geo_Lat','Actor1Geo_Long')
+act2 = events.select('DATEADDED','SOURCEURL','Actor2Geo_FullName','Actor2Geo_ADM1Code','Actor2Geo_Lat','Actor2Geo_Long')
+action = events.select('DATEADDED','SOURCEURL','ActionGeo_FullName','ActionGeo_ADM1Code','ActionGeo_Lat','ActionGeo_Long')
+cols = ['DATEADDED','SOURCEURL','GEO_NAME','ADMIN1', 'LAT','LON']
+act1 = act1.toDF(*cols)
+act2 = act2.toDF(*cols)
+action = action.toDF(*cols)
+long_df = act1.union(act2).union(action)
+long_df = long_df.withColumn('DATEADDED', to_timestamp('DATEADDED', format='yyyyMMddHHmmss'))
+long_df = long_df.withColumn('DATEADDED', to_date('DATEADDED'))
+
+#  keep only events in the country
+long_df = long_df.fillna('', subset=['ADMIN1'])
+long_df = long_df.filter(long_df['ADMIN1'].startswith(CO))
+print(long_df.count())
 
 # COMMAND ----------
 
-display(long_df)
+# split into country-wide and admin-level df
+co_df = co_df.drop(*['LAT','LON','GEO_NAME'])
+adm_df = long_df.filter(long_df['ADMIN1']!=CO)
+
+# some processing
+co_df = long_df.filter(long_df['ADMIN1']==CO)
+adm_df = adm_df.withColumn('LON', adm_df['LON'].cast(FloatType()))
+adm_df = adm_df.withColumn('LAT', adm_df['LAT'].cast(FloatType()))
+
+# convert to pandas for merge
+adm_df = adm_df.toPandas()
+
+# COMMAND ----------
+
+# merge the data with shapefile to get admin 1 names
+geometry = [Point(xy)  for xy in zip(adm_df['LON'], adm_df['LAT'])]
+adm_gdf = gpd.GeoDataFrame(adm_df, crs=gdf.crs, geometry=geometry)
+adm_gdf = gpd.sjoin(gdf, adm_gdf, how='inner', predicate='intersects', lsuffix='left', rsuffix='right')
+
+# COMMAND ----------
+
+# processing
+adm_gdf = adm_gdf[['DATEADDED','SOURCEURL','ADM1_EN']]
+adm_gdf.columns = ['DATEADDED','SOURCEURL','ADMIN1']
+
+# convert back to spark
+spark.conf.set("spark.sql.execution.arrow.pyspark.enabled", "true")
+adm_gdf = spark.createDataFrame(adm_gdf)
+
+# COMMAND ----------
+
+# combine country-wide and admin-level df back together
+long_df = co_df.union(adm_gdf)
 
 # COMMAND ----------
 
