@@ -16,9 +16,9 @@ from pyspark.sql.types import FloatType
 
 ######## CHANGE THIS! ########
 # Process one country at a time
-# CO = 'DJ' ### one admin 1 seems collapsed with capital
-# CO_ACLED_NO = 97
-# SHAPEFILE = '/dbfs/FileStore/df/shapefiles/djibouti_adm1/dji_admbnda_gadm_adm1_2022.shp'
+CO = 'DJ' ### one admin 1 seems collapsed with capital
+CO_ACLED_NO = 97
+SHAPEFILE = '/dbfs/FileStore/df/shapefiles/djibouti_adm1/dji_admbnda_gadm_adm1_2022.shp'
 
 # CO = 'ER'
 # CO_ACLED_NO = 104
@@ -97,20 +97,20 @@ standard_admin = d.select('ACLED_Admin1').distinct().rdd.flatMap(list).collect()
 ######## CHECK HERE! ########
 # check that admin names are in the standard name list 
 new_admin = list(gdf['ADM1_EN'])
-wrong_name = [x for x in new_admin if x not in standard_admin]
+not_in_acled = [x for x in new_admin if x not in standard_admin]
 not_in_shp = [x for x in standard_admin if x not in new_admin]
-assert len(wrong_name) == 0, 'Check admin names!'
+assert len(not_in_acled) == 0, 'Check admin names!'
 
 # COMMAND ----------
 
-print(wrong_name)
+print(not_in_acled)
 print(not_in_shp)
 
 # COMMAND ----------
 
 ######## CHANGE THIS! ########
-gdf.loc[gdf['ADM1_EN']=='Aj Jazirah', 'ADM1_EN'] = 'Al Jazirah'
-gdf.loc[gdf['ADM1_EN']=='Abyei PCA', 'ADM1_EN'] = 'Abyei'
+gdf.loc[gdf['ADM1_EN']=='Djiboutii', 'ADM1_EN'] = 'Djibouti'
+gdf.loc[gdf['ADM1_EN']=='Tadjoura', 'ADM1_EN'] = 'Tadjourah'
 
 # COMMAND ----------
 
@@ -160,11 +160,13 @@ print(long_df.count())
 # COMMAND ----------
 
 # split into country-wide and admin-level df
-co_df = co_df.drop(*['LAT','LON','GEO_NAME'])
+co_df = long_df.filter(long_df['ADMIN1']==CO)
 adm_df = long_df.filter(long_df['ADMIN1']!=CO)
+print(co_df.count())
+print(adm_df.count())
 
 # some processing
-co_df = long_df.filter(long_df['ADMIN1']==CO)
+co_df = co_df.drop(*['LAT','LON','GEO_NAME'])
 adm_df = adm_df.withColumn('LON', adm_df['LON'].cast(FloatType()))
 adm_df = adm_df.withColumn('LAT', adm_df['LAT'].cast(FloatType()))
 
@@ -176,7 +178,18 @@ adm_df = adm_df.toPandas()
 # merge the data with shapefile to get admin 1 names
 geometry = [Point(xy)  for xy in zip(adm_df['LON'], adm_df['LAT'])]
 adm_gdf = gpd.GeoDataFrame(adm_df, crs=gdf.crs, geometry=geometry)
-adm_gdf = gpd.sjoin(gdf, adm_gdf, how='inner', predicate='intersects', lsuffix='left', rsuffix='right')
+adm_gdf = gpd.sjoin(adm_gdf, gdf, how='left', predicate='intersects', lsuffix='left', rsuffix='right')
+print(adm_gdf.shape)
+
+# COMMAND ----------
+
+#### CHECK HERE ####
+adm_gdf[pd.isna(adm_gdf['ADM1_EN'])]['ADMIN1'].unique()
+
+# COMMAND ----------
+
+#### RUN IF NEEDED ####
+adm_gdf['ADM1_EN'].fillna(CO, inplace=True)
 
 # COMMAND ----------
 
@@ -192,6 +205,7 @@ adm_gdf = spark.createDataFrame(adm_gdf)
 
 # combine country-wide and admin-level df back together
 long_df = co_df.union(adm_gdf)
+long_df.count()
 
 # COMMAND ----------
 
