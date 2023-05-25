@@ -20,13 +20,13 @@ from pyspark.sql.types import FloatType
 # CO_ACLED_NO = 97
 # SHAPEFILE = '/dbfs/FileStore/df/shapefiles/djibouti_adm1/dji_admbnda_gadm_adm1_2022.shp'
 
-CO = 'ER'
-CO_ACLED_NO = 104
-SHAPEFILE = '/dbfs/FileStore/df/shapefiles/eritrea_adm1/eri_admbnda_adm1_gov_20200427.shp'
+# CO = 'ER'
+# CO_ACLED_NO = 104
+# SHAPEFILE = '/dbfs/FileStore/df/shapefiles/eritrea_adm1/eri_admbnda_adm1_gov_20200427.shp'
 
-# CO = 'ET'
-# CO_ACLED_NO = 108
-# SHAPEFILE = '/dbfs/FileStore/df/shapefiles/ethiopia_adm1/eth_admbnda_adm1_csa_bofedb_2021.shp'
+CO = 'ET'
+CO_ACLED_NO = 108
+SHAPEFILE = '/dbfs/FileStore/df/shapefiles/ethiopia_adm1/eth_admbnda_adm1_csa_bofedb_2021.shp'
 
 # CO = 'KE'
 # CO_ACLED_NO = 175
@@ -109,8 +109,8 @@ print(not_in_shp)
 # COMMAND ----------
 
 ######## CHANGE THIS! ########
-gdf.loc[gdf['ADM1_EN']=='Djiboutii', 'ADM1_EN'] = 'Djibouti'
-gdf.loc[gdf['ADM1_EN']=='Tadjoura', 'ADM1_EN'] = 'Tadjourah'
+gdf.loc[gdf['ADM1_EN']=='Benishangul Gumz', 'ADM1_EN'] = 'Benshangul/Gumuz'
+gdf.loc[gdf['ADM1_EN']=='South West Ethiopia', 'ADM1_EN'] = 'South West'
 
 # COMMAND ----------
 
@@ -188,13 +188,16 @@ adm_gdf[pd.isna(adm_gdf['ADM1_EN'])]['ADMIN1'].unique()
 
 # COMMAND ----------
 
-# adm_gdf[adm_gdf['ADMIN1']=='ER06']['GEO_NAME'].unique()
+# adm_gdf[adm_gdf['ADMIN1']=='ET52']['GEO_NAME'].unique()
 
 # COMMAND ----------
 
 #### RUN IF NEEDED ####
-# not place through coords AND admin1 06 --> fix
-adm_gdf.loc[(pd.isna(adm_gdf['ADM1_EN'])) & (adm_gdf['ADMIN1']=='ER06'), 'ADM1_EN'] = 'Semienawi Keih Bahri'
+# not place through coords AND admin1 --> fix
+adm_gdf.loc[(pd.isna(adm_gdf['ADM1_EN'])) & (adm_gdf['ADMIN1']=='ET53'), 'ADM1_EN'] = 'Tigray'
+adm_gdf.loc[(pd.isna(adm_gdf['ADM1_EN'])) & (adm_gdf['ADMIN1']=='ET49'), 'ADM1_EN'] = 'Gambela'
+adm_gdf.loc[(pd.isna(adm_gdf['ADM1_EN'])) & (adm_gdf['ADMIN1']=='ET47'), 'ADM1_EN'] = 'Benshangul/Gumuz'
+adm_gdf.loc[(pd.isna(adm_gdf['ADM1_EN'])) & (adm_gdf['ADMIN1']=='ET52'), 'ADM1_EN'] = 'Somali'
 # designate the rest to entire country
 adm_gdf['ADM1_EN'].fillna(CO, inplace=True)
 
