@@ -16,13 +16,13 @@ from pyspark.sql.types import FloatType
 
 ######## CHANGE THIS! ########
 # Process one country at a time
-CO = 'DJ' ### one admin 1 seems collapsed with capital
-CO_ACLED_NO = 97
-SHAPEFILE = '/dbfs/FileStore/df/shapefiles/djibouti_adm1/dji_admbnda_gadm_adm1_2022.shp'
+# CO = 'DJ' ### one admin 1 seems collapsed with capital
+# CO_ACLED_NO = 97
+# SHAPEFILE = '/dbfs/FileStore/df/shapefiles/djibouti_adm1/dji_admbnda_gadm_adm1_2022.shp'
 
-# CO = 'ER'
-# CO_ACLED_NO = 104
-# SHAPEFILE = '/dbfs/FileStore/df/shapefiles/eritrea_adm1/eri_admbnda_adm1_gov_20200427.shp'
+CO = 'ER'
+CO_ACLED_NO = 104
+SHAPEFILE = '/dbfs/FileStore/df/shapefiles/eritrea_adm1/eri_admbnda_adm1_gov_20200427.shp'
 
 # CO = 'ET'
 # CO_ACLED_NO = 108
@@ -188,7 +188,14 @@ adm_gdf[pd.isna(adm_gdf['ADM1_EN'])]['ADMIN1'].unique()
 
 # COMMAND ----------
 
+# adm_gdf[adm_gdf['ADMIN1']=='ER06']['GEO_NAME'].unique()
+
+# COMMAND ----------
+
 #### RUN IF NEEDED ####
+# not place through coords AND admin1 06 --> fix
+adm_gdf.loc[(pd.isna(adm_gdf['ADM1_EN'])) & (adm_gdf['ADMIN1']=='ER06'), 'ADM1_EN'] = 'Semienawi Keih Bahri'
+# designate the rest to entire country
 adm_gdf['ADM1_EN'].fillna(CO, inplace=True)
 
 # COMMAND ----------
@@ -211,3 +218,7 @@ long_df.count()
 
 # save
 long_df.write.mode('append').format('delta').saveAsTable("{}.{}".format(DATABASE_NAME, OUTPUT_TABLE_NAME))
+
+# COMMAND ----------
+
+
