@@ -36,13 +36,13 @@ from pyspark.sql.types import FloatType
 # CO_ACLED_NO = 224
 # SHAPEFILE = '/dbfs/FileStore/df/shapefiles/somalia_adm1/som_admbnda_adm1_ocha_20230308.shp'
 
-CO = 'OD'
-CO_ACLED_NO = 227
-SHAPEFILE = '/dbfs/FileStore/df/shapefiles/southsudan_adm1/ssd_admbnda_adm1_imwg_nbs_20221219.shp'
+# CO = 'OD'
+# CO_ACLED_NO = 227
+# SHAPEFILE = '/dbfs/FileStore/df/shapefiles/southsudan_adm1/ssd_admbnda_adm1_imwg_nbs_20221219.shp'
 
-# CO = 'SU'
-# CO_ACLED_NO = 214
-# SHAPEFILE = '/dbfs/FileStore/df/shapefiles/sudan_adm1/sdn_admbnda_adm1_cbs_nic_ssa_20200831.shp'
+CO = 'SU'
+CO_ACLED_NO = 214
+SHAPEFILE = '/dbfs/FileStore/df/shapefiles/sudan_adm1/sdn_admbnda_adm1_cbs_nic_ssa_20200831.shp'
 
 # CO = 'UG'
 # CO_ACLED_NO = 235
@@ -109,8 +109,9 @@ print(not_in_shp)
 # COMMAND ----------
 
 ######## CHANGE THIS! ########
-# gdf.loc[gdf['ADM1_EN']=="Murang'a", 'ADM1_EN'] = 'Muranga'
-# gdf.loc[gdf['ADM1_EN']=='Elgeyo-Marakwet', 'ADM1_EN'] = 'Elgeyo Marakwet'
+gdf.loc[gdf['ADM1_EN']=='Abyei PCA', 'ADM1_EN'] = 'Abyei'
+gdf.loc[gdf['ADM1_EN']=='Aj Jazirah', 'ADM1_EN'] = 'Al Jazirah'
+# Note: 'Upper Nile', 'Bahr el Ghazal', 'Equatoria' are not in ACLED data after 2020
 
 # COMMAND ----------
 
@@ -188,14 +189,15 @@ adm_gdf[pd.isna(adm_gdf['ADM1_EN'])]['ADMIN1'].unique()
 
 # COMMAND ----------
 
-adm_gdf[(pd.isna(adm_gdf['ADM1_EN'])) & (adm_gdf['ADMIN1']=='OD09')]['GEO_NAME'].unique()
+adm_gdf[(pd.isna(adm_gdf['ADM1_EN'])) & (adm_gdf['ADMIN1']=='SU47')]['GEO_NAME'].unique()
 
 # COMMAND ----------
 
 #### RUN IF NEEDED ####
 # not place through coords AND admin1 --> fix
-adm_gdf.loc[(pd.isna(adm_gdf['ADM1_EN'])) & (adm_gdf['ADMIN1']=='OD07'), 'ADM1_EN'] = 'Upper Nile'
-adm_gdf.loc[(pd.isna(adm_gdf['ADM1_EN'])) & (adm_gdf['ADMIN1']=='OD09'), 'ADM1_EN'] = 'Western Bahr el Ghazal'
+adm_gdf.loc[(pd.isna(adm_gdf['ADM1_EN'])) & (adm_gdf['ADMIN1']=='SU36'), 'ADM1_EN'] = 'Red Sea'
+adm_gdf.loc[(pd.isna(adm_gdf['ADM1_EN'])) & (adm_gdf['ADMIN1']=='SU49'), 'ADM1_EN'] = 'South Darfur'
+adm_gdf.loc[(pd.isna(adm_gdf['ADM1_EN'])) & (adm_gdf['ADMIN1']=='SU47'), 'ADM1_EN'] = 'West Darfur'
 
 # designate the rest to entire country
 adm_gdf['ADM1_EN'].fillna(CO, inplace=True)
