@@ -32,13 +32,13 @@ from pyspark.sql.types import FloatType
 # CO_ACLED_NO = 175
 # SHAPEFILE = '/dbfs/FileStore/df/shapefiles/kenya_adm1/ken_admbnda_adm1_iebc_20191031.shp'
 
-CO = 'SO'
-CO_ACLED_NO = 224
-SHAPEFILE = '/dbfs/FileStore/df/shapefiles/somalia_adm1/som_admbnda_adm1_ocha_20230308.shp'
+# CO = 'SO'
+# CO_ACLED_NO = 224
+# SHAPEFILE = '/dbfs/FileStore/df/shapefiles/somalia_adm1/som_admbnda_adm1_ocha_20230308.shp'
 
-# CO = 'OD'
-# CO_ACLED_NO = 227
-# SHAPEFILE = '/dbfs/FileStore/df/shapefiles/southsudan_adm1/ssd_admbnda_adm1_imwg_nbs_20221219.shp'
+CO = 'OD'
+CO_ACLED_NO = 227
+SHAPEFILE = '/dbfs/FileStore/df/shapefiles/southsudan_adm1/ssd_admbnda_adm1_imwg_nbs_20221219.shp'
 
 # CO = 'SU'
 # CO_ACLED_NO = 214
@@ -188,15 +188,14 @@ adm_gdf[pd.isna(adm_gdf['ADM1_EN'])]['ADMIN1'].unique()
 
 # COMMAND ----------
 
-adm_gdf[(pd.isna(adm_gdf['ADM1_EN'])) & (adm_gdf['ADMIN1']=='SO09')]['GEO_NAME'].unique()
+adm_gdf[(pd.isna(adm_gdf['ADM1_EN'])) & (adm_gdf['ADMIN1']=='OD09')]['GEO_NAME'].unique()
 
 # COMMAND ----------
 
 #### RUN IF NEEDED ####
 # not place through coords AND admin1 --> fix
-adm_gdf.loc[(pd.isna(adm_gdf['ADM1_EN'])) & (adm_gdf['ADMIN1']=='SO19'), 'ADM1_EN'] = 'Togdheer'
-adm_gdf.loc[(pd.isna(adm_gdf['ADM1_EN'])) & (adm_gdf['ADMIN1']=='SO03'), 'ADM1_EN'] = 'Bari'
-adm_gdf.loc[(pd.isna(adm_gdf['ADM1_EN'])) & (adm_gdf['ADMIN1']=='SO09'), 'ADM1_EN'] = 'Lower Juba'
+adm_gdf.loc[(pd.isna(adm_gdf['ADM1_EN'])) & (adm_gdf['ADMIN1']=='OD07'), 'ADM1_EN'] = 'Upper Nile'
+adm_gdf.loc[(pd.isna(adm_gdf['ADM1_EN'])) & (adm_gdf['ADMIN1']=='OD09'), 'ADM1_EN'] = 'Western Bahr el Ghazal'
 
 # designate the rest to entire country
 adm_gdf['ADM1_EN'].fillna(CO, inplace=True)
