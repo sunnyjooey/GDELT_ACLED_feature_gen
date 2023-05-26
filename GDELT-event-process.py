@@ -40,13 +40,15 @@ from pyspark.sql.types import FloatType
 # CO_ACLED_NO = 227
 # SHAPEFILE = '/dbfs/FileStore/df/shapefiles/southsudan_adm1/ssd_admbnda_adm1_imwg_nbs_20221219.shp'
 
-CO = 'SU'
-CO_ACLED_NO = 214
-SHAPEFILE = '/dbfs/FileStore/df/shapefiles/sudan_adm1/sdn_admbnda_adm1_cbs_nic_ssa_20200831.shp'
+# CO = 'SU'
+# CO_ACLED_NO = 214
+# SHAPEFILE = '/dbfs/FileStore/df/shapefiles/sudan_adm1/sdn_admbnda_adm1_cbs_nic_ssa_20200831.shp'
 
-# CO = 'UG'
-# CO_ACLED_NO = 235
-# SHAPEFILE = '/dbfs/FileStore/df/shapefiles/uganda_adm1/uga_admbnda_adm1_ubos_20200824.shp'
+# using admin level 2 shapefile to match ACLED (where admin 2 is under admin 1 col)
+# note the column name differences below
+CO = 'UG'
+CO_ACLED_NO = 235
+SHAPEFILE = '/dbfs/FileStore/df/shapefiles/uganda_adm1/uga_admbnda_adm2_ubos_20200824.shp'
 
 # database and table
 DATABASE_NAME = 'news_media'
@@ -88,7 +90,7 @@ d = (spark.read
     )
 
 # filter to sudan    
-d = d.filter(d['CountryFK']==CO_ACLED_NO)
+d = d.filter((d['CountryFK']==CO_ACLED_NO) & (d['TimeFK_Event_Date']>=20200101))
 # standard admin values 
 standard_admin = d.select('ACLED_Admin1').distinct().rdd.flatMap(list).collect()
 
@@ -96,7 +98,7 @@ standard_admin = d.select('ACLED_Admin1').distinct().rdd.flatMap(list).collect()
 
 ######## CHECK HERE! ########
 # check that admin names are in the standard name list 
-new_admin = list(gdf['ADM1_EN'])
+new_admin = list(gdf['ADM2_EN'])
 not_in_acled = [x for x in new_admin if x not in standard_admin]
 not_in_shp = [x for x in standard_admin if x not in new_admin]
 # assert len(not_in_acled) == 0, 'Check admin names!'
@@ -109,9 +111,9 @@ print(not_in_shp)
 # COMMAND ----------
 
 ######## CHANGE THIS! ########
-gdf.loc[gdf['ADM1_EN']=='Abyei PCA', 'ADM1_EN'] = 'Abyei'
-gdf.loc[gdf['ADM1_EN']=='Aj Jazirah', 'ADM1_EN'] = 'Al Jazirah'
-# Note: 'Upper Nile', 'Bahr el Ghazal', 'Equatoria' are not in ACLED data after 2020
+# gdf.loc[gdf['ADM1_EN']=='Abyei PCA', 'ADM1_EN'] = 'Abyei'
+# gdf.loc[gdf['ADM1_EN']=='Aj Jazirah', 'ADM1_EN'] = 'Al Jazirah'
+# # Note: 'Upper Nile', 'Bahr el Ghazal', 'Equatoria' are not in ACLED data after 2020
 
 # COMMAND ----------
 
@@ -185,27 +187,32 @@ print(adm_gdf.shape)
 # COMMAND ----------
 
 #### CHECK HERE ####
-adm_gdf[pd.isna(adm_gdf['ADM1_EN'])]['ADMIN1'].unique()
+adm_gdf[pd.isna(adm_gdf['ADM2_EN'])]['ADMIN1'].unique()
 
 # COMMAND ----------
 
-adm_gdf[(pd.isna(adm_gdf['ADM1_EN'])) & (adm_gdf['ADMIN1']=='SU47')]['GEO_NAME'].unique()
+adm_gdf[(pd.isna(adm_gdf['ADM2_EN'])) & (adm_gdf['ADMIN1']=='UG61')]['GEO_NAME'].unique()
 
 # COMMAND ----------
 
 #### RUN IF NEEDED ####
 # not place through coords AND admin1 --> fix
-adm_gdf.loc[(pd.isna(adm_gdf['ADM1_EN'])) & (adm_gdf['ADMIN1']=='SU36'), 'ADM1_EN'] = 'Red Sea'
-adm_gdf.loc[(pd.isna(adm_gdf['ADM1_EN'])) & (adm_gdf['ADMIN1']=='SU49'), 'ADM1_EN'] = 'South Darfur'
-adm_gdf.loc[(pd.isna(adm_gdf['ADM1_EN'])) & (adm_gdf['ADMIN1']=='SU47'), 'ADM1_EN'] = 'West Darfur'
+adm_gdf.loc[(pd.isna(adm_gdf['ADM2_EN'])) & (adm_gdf['ADMIN1']=='UG34'), 'ADM2_EN'] = 'Kabale'
+adm_gdf.loc[(pd.isna(adm_gdf['ADM2_EN'])) & (adm_gdf['ADMIN1']=='UGD6'), 'ADM2_EN'] = 'Manafwa'
+adm_gdf.loc[(pd.isna(adm_gdf['ADM2_EN'])) & (adm_gdf['ADMIN1']=='UG43'), 'ADM2_EN'] = 'Kisoro'
+adm_gdf.loc[(pd.isna(adm_gdf['ADM2_EN'])) & (adm_gdf['ADMIN1']=='UGC4'), 'ADM2_EN'] = 'Bukwo'
+adm_gdf.loc[(pd.isna(adm_gdf['ADM2_EN'])) & (adm_gdf['ADMIN1']=='UG59'), 'ADM2_EN'] = 'Ntungamo'
+adm_gdf.loc[(pd.isna(adm_gdf['ADM2_EN'])) & (adm_gdf['ADMIN1']=='UG28'), 'ADM2_EN'] = 'Bundibugyo'
+adm_gdf.loc[(pd.isna(adm_gdf['ADM2_EN'])) & (adm_gdf['ADMIN1']=='UGC9'), 'ADM2_EN'] = 'Isingiro'
+adm_gdf.loc[(pd.isna(adm_gdf['ADM2_EN'])) & (adm_gdf['ADMIN1']=='UG61'), 'ADM2_EN'] = 'Rakai'
 
 # designate the rest to entire country
-adm_gdf['ADM1_EN'].fillna(CO, inplace=True)
+adm_gdf['ADM2_EN'].fillna(CO, inplace=True)
 
 # COMMAND ----------
 
 # processing
-adm_gdf = adm_gdf[['DATEADDED','SOURCEURL','ADM1_EN']]
+adm_gdf = adm_gdf[['DATEADDED','SOURCEURL','ADM2_EN']]
 adm_gdf.columns = ['DATEADDED','SOURCEURL','ADMIN1']
 
 # convert back to spark
