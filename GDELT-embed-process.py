@@ -13,7 +13,7 @@ co = CO.lower()
 DATABASE_NAME = 'news_media'
 EVTSLV_TABLE_NAME = f'horn_africa_gdelt_events_{co}_slv'
 EMB_TABLE_NAME = 'horn_africa_gdelt_gsgembed_brz'
-OUTPUT_TABLE_NAME = f'horn_africa_gdelt_gsgembed_{co}_slv'
+OUTPUT_TABLE_NAME = f'horn_africa_gdelt_gsgembed_{co}_1w_slv'
 
 # COMMAND ----------
 
