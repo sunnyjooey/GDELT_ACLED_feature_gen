@@ -70,7 +70,7 @@ for admin in admins:
 
 # collapse into one df and clean
 df = functools.reduce(DataFrame.union, collect_dfs)
-df = df.withColumn('DATE', F.to_date(adm['DATE']['start']))
+df = df.withColumn('DATE', F.to_date(adm['DATE']['end']))
 cols = ['DATE', 'ADMIN1'] + list(np.arange(512).astype(str))
 df = df.select(*cols)
 
