@@ -8,7 +8,15 @@ from pyspark.sql import DataFrame
 
 # COMMAND ----------
 
-CO = 'SU'
+from pyspark.sql import SparkSession
+from pyspark.dbutils import DBUtils
+
+spark = SparkSession.builder.getOrCreate()
+dbutils = DBUtils(spark)
+CO = dbutils.widgets.get("CO")
+
+# COMMAND ----------
+
 co = CO.lower()
 DATABASE_NAME = 'news_media'
 EVTSLV_TABLE_NAME = f'horn_africa_gdelt_events_{co}_slv'
