@@ -14,6 +14,7 @@ from pyspark.dbutils import DBUtils
 spark = SparkSession.builder.getOrCreate()
 dbutils = DBUtils(spark)
 CO = dbutils.widgets.get("CO")
+print(CO)
 
 # COMMAND ----------
 
@@ -75,7 +76,7 @@ df1 = df1.withColumn('STARTDATE', F.to_date(df1['DATE']['start']))
 df1 = df1.withColumn('ENDDATE', F.to_date(df1['DATE']['end']))
 cols = ['STARTDATE', 'ENDDATE', 'ADMIN1'] + list(np.arange(512).astype(str))
 df1 = df1.select(*cols)
-df1.count()
+print(df1.count())
 
 # COMMAND ----------
 
@@ -108,13 +109,13 @@ df2 = df2.withColumn('STARTDATE', F.to_date(df2['DATE']['start']))
 df2 = df2.withColumn('ENDDATE', F.to_date(df2['DATE']['end']))
 cols = ['STARTDATE', 'ENDDATE', 'ADMIN1'] + list(np.arange(512).astype(str))
 df2 = df2.select(*cols)
-df2.count()
+print(df2.count())
 
 # COMMAND ----------
 
 # concat together
 df = df1.union(df2)
-df.count()
+print(df.count())
 
 # COMMAND ----------
 
