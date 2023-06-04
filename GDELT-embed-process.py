@@ -51,7 +51,7 @@ all_df = all_df.select(*cols)
 # COMMAND ----------
 
 # get average embeddings by time intervals (2-week) and admin 1
-m = all_df.groupBy(F.window(F.col("DATEADDED"), "2 week", "1 week"), 'ADMIN1').mean()
+m = all_df.groupBy(F.window(F.col("DATEADDED"), "2 week", "1 week", "-3 day"), 'ADMIN1').mean()
 cols = ['DATE', 'ADMIN1'] + list(np.arange(512).astype(str))
 m = m.toDF(*cols)
 
