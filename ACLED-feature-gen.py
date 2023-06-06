@@ -5,8 +5,6 @@ import datetime as dt
 
 # COMMAND ----------
 
-# country code
-CO_ACLED_NO = 214
 # 2-week intervals starting on monday
 INTERVAL = '2W-MON'
 
@@ -50,10 +48,7 @@ def get_data(df, cnty_code, admin_col):
 
 # COMMAND ----------
 
-df = get_data(df_all, CO_ACLED_NO, 'ACLED_Admin1')
-
-# COMMAND ----------
-
+# DBTITLE 1,Create Lagged Features
 def make_lagged_features(df, num_lags, date_col, freq, data_start_date, index_start_date, admin_col, event_type_col, value_col, agg_func):
     df = df.loc[df[date_col] >= data_start_date, :]
     # create wide pivot table 
@@ -83,6 +78,10 @@ def make_lagged_features(df, num_lags, date_col, freq, data_start_date, index_st
 
 # COMMAND ----------
 
+df = get_data(df_all, CO_ACLED_NO, 'ACLED_Admin1')
+
+# COMMAND ----------
+
 # data_start_date: where to start the data including the lags, calculate by multiplying num_lags and INTERVAL (starting point is index_start_date)
 # index_start_date: where to start the feature set
 # both dates should be a Monday (match with INTERVAL)
@@ -99,15 +98,12 @@ d = d.sort_values('TimeFK_Event_Date')
 
 # COMMAND ----------
 
-# dd = df[(df['TimeFK_Event_Date']>=dt.datetime(2019,12,23,0,0,0)) & (df['TimeFK_Event_Date']<dt.datetime(2020,1,6,0,0,0)) & (df['ACLED_Event_Type']=='Battles') & (df['ACLED_Admin1']=='Red Sea')]['ACLED_Fatalities'].sum()
-# dd
+# # check
+# df[(df['TimeFK_Event_Date']>=dt.datetime(2019,12,23,0,0,0)) & (df['TimeFK_Event_Date']<dt.datetime(2020,1,6,0,0,0)) & (df['ACLED_Event_Type']=='Battles') & (df['ACLED_Admin1']=='Red Sea')]['ACLED_Fatalities'].sum()
 
 # COMMAND ----------
 
-
-
-# COMMAND ----------
-
+# DBTITLE 1,Create Time Units Since Features
 def get_time_since(col, m_since_num):
     boolean_array = np.asarray(col >= m_since_num)
     if boolean_array.sum() == 0:
@@ -122,7 +118,7 @@ def get_time_since(col, m_since_num):
 
 def get_time_since_df(df, m_since_lst, date_col, freq, admin_col, event_type_col, value_col, start_time, num_lags):
     # create wide pivot table
-    piv = pd.DataFrame(df.groupby([pd.Grouper(key=date_col, freq=freq), admin_col, event_type_col])[value_col].sum()).unstack().fillna(0)
+    piv = pd.DataFrame(df.groupby([pd.Grouper(key=date_col, freq=freq, closed='left', label='left'), admin_col, event_type_col])[value_col].sum()).unstack().fillna(0)
     # cols of (admin name, event type) tuples
     cols = pd.MultiIndex.from_product([df[admin_col].unique(), df[event_type_col].unique()])
     piv.columns = list(piv.columns.droplevel(0))
@@ -156,18 +152,22 @@ def get_time_since_df(df, m_since_lst, date_col, freq, admin_col, event_type_col
 
 # convert admin to category - make sure admins are not left out in groupby
 df['ACLED_Event_Type'] = df['ACLED_Event_Type'].astype('category')
-s = get_time_since_df(df, [1, 5], 'TimeFK_Event_Date', INTERVAL, 'ACLED_Admin1', 'ACLED_Event_Type', 'ACLED_Fatalities', dt.datetime(2020,1,1,0,0,0), 2)
+s = get_time_since_df(df, [1, 5, 20], 'TimeFK_Event_Date', INTERVAL, 'ACLED_Admin1', 'ACLED_Event_Type', 'ACLED_Fatalities', dt.datetime(2019,12,30,0,0,0), 2)
 
 # COMMAND ----------
 
-# this means that on jan 2020,
-# it was 3 months since at least 1 fatality due to battles in central darfur
-# it was 6 months since at least 5 fatalities due to protests in north kordofan
-s.head(20)
+# cleaning
+s = s.reset_index()
+s = s.sort_values('TimeFK_Event_Date')
 
 # COMMAND ----------
 
-s.tail(20)
+# # check
+# df[(df['TimeFK_Event_Date']>dt.datetime(2023,1,1,0,0,0)) & (df['TimeFK_Event_Date']<dt.datetime(2023,5,29,0,0,0)) & (df['ACLED_Admin1']=='Blue Nile') & (df['ACLED_Event_Type']=='Battles') & (df['ACLED_Fatalities']>0)].sort_values('TimeFK_Event_Date')
+
+# COMMAND ----------
+
+# s.iloc[-160:-100,:]
 
 # COMMAND ----------
 
