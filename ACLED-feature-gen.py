@@ -5,6 +5,13 @@ import datetime as dt
 
 # COMMAND ----------
 
+# country code
+CO_ACLED_NO = 214
+# 2-week intervals starting on monday
+INTERVAL = '2W-MON'
+
+# COMMAND ----------
+
 from pyspark.sql import SparkSession
 from pyspark.dbutils import DBUtils
 
@@ -43,13 +50,15 @@ def get_data(df, cnty_code, admin_col):
 
 # COMMAND ----------
 
-df = get_data(df_all, 214, 'ACLED_Admin1')
+df = get_data(df_all, CO_ACLED_NO, 'ACLED_Admin1')
 
 # COMMAND ----------
 
-def make_lagged_features(df, num_lags, date_col, freq, start_date, admin_col, event_type_col, value_col, agg_func):
-    # create wide pivot table
-    piv = pd.DataFrame(df.groupby([pd.Grouper(key=date_col, freq=freq), admin_col, event_type_col])[value_col].agg(agg_func)).unstack().fillna(0)
+def make_lagged_features(df, num_lags, date_col, freq, data_start_date, index_start_date, admin_col, event_type_col, value_col, agg_func):
+    df = df.loc[df[date_col] >= data_start_date, :]
+    # create wide pivot table 
+    # include the starting date, have that as label
+    piv = pd.DataFrame(df.groupby([pd.Grouper(key=date_col, freq=freq, closed='left', label='left'), admin_col, event_type_col])[value_col].agg(agg_func)).unstack().fillna(0)
     # number of names in admin level
     num_adm = len(df[admin_col].cat.categories)
     # keep track of columns
@@ -66,7 +75,7 @@ def make_lagged_features(df, num_lags, date_col, freq, start_date, admin_col, ev
 
     # filter to after start date
     date_index = piv.index.levels[0] 
-    after_start = date_index[date_index >= start_date]
+    after_start = date_index[date_index >= index_start_date]
     piv = piv.loc[after_start, : ]
     # drop non-lagged cols - uncomment to check work
     piv = piv.loc[:, [c for c in piv.columns if c not in orig_cols]]
@@ -74,18 +83,28 @@ def make_lagged_features(df, num_lags, date_col, freq, start_date, admin_col, ev
 
 # COMMAND ----------
 
-d = make_lagged_features(df, 2, 'TimeFK_Event_Date', '1M', dt.datetime(2020,1,1,0,0,0), 'ACLED_Admin1', 'ACLED_Event_Type', 'ACLED_Fatalities', 'sum')
+# data_start_date: where to start the data including the lags, calculate by multiplying num_lags and INTERVAL (starting point is index_start_date)
+# index_start_date: where to start the feature set
+# both dates should be a Monday (match with INTERVAL)
+d1 = make_lagged_features(df, 3, 'TimeFK_Event_Date', INTERVAL, dt.datetime(2019, 11, 18, 0, 0, 0), dt.datetime(2019, 12, 30, 0, 0, 0), 'ACLED_Admin1', 'ACLED_Event_Type', 'ACLED_Fatalities', 'sum')
+# couldn't figure how to do sliding window in pandas, so doing this manually
+d2 = make_lagged_features(df, 3, 'TimeFK_Event_Date', INTERVAL, dt.datetime(2019, 11, 25, 0, 0, 0), dt.datetime(2020, 1, 6, 0, 0, 0), 'ACLED_Admin1', 'ACLED_Event_Type', 'ACLED_Fatalities', 'sum')
 
 # COMMAND ----------
 
-# this means that on jan 2020, 
-# there were 3 fatalities due to battles in the previous month (Dec 2019) in north darfur
-# there were 11 fatalities due to violence against civilians two months before (Nov 2019) in abyei
-d.head(20)
+# concat together and sort
+d = pd.concat([d1, d2])
+d = d.reset_index()
+d = d.sort_values('TimeFK_Event_Date')
 
 # COMMAND ----------
 
-d.tail(20)
+# dd = df[(df['TimeFK_Event_Date']>=dt.datetime(2019,12,23,0,0,0)) & (df['TimeFK_Event_Date']<dt.datetime(2020,1,6,0,0,0)) & (df['ACLED_Event_Type']=='Battles') & (df['ACLED_Admin1']=='Red Sea')]['ACLED_Fatalities'].sum()
+# dd
+
+# COMMAND ----------
+
+
 
 # COMMAND ----------
 
@@ -137,7 +156,7 @@ def get_time_since_df(df, m_since_lst, date_col, freq, admin_col, event_type_col
 
 # convert admin to category - make sure admins are not left out in groupby
 df['ACLED_Event_Type'] = df['ACLED_Event_Type'].astype('category')
-s = get_time_since_df(df, [1, 5], 'TimeFK_Event_Date', '1M', 'ACLED_Admin1', 'ACLED_Event_Type', 'ACLED_Fatalities', dt.datetime(2020,1,1,0,0,0), 2)
+s = get_time_since_df(df, [1, 5], 'TimeFK_Event_Date', INTERVAL, 'ACLED_Admin1', 'ACLED_Event_Type', 'ACLED_Fatalities', dt.datetime(2020,1,1,0,0,0), 2)
 
 # COMMAND ----------
 
