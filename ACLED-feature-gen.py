@@ -2,6 +2,7 @@
 import pandas as pd
 import numpy as np
 import datetime as dt
+from functools import reduce
 
 # COMMAND ----------
 
@@ -60,51 +61,73 @@ def get_data(df, cnty_code, admin_col):
 # COMMAND ----------
 
 # DBTITLE 1,Create Lagged Features
-def make_lagged_features(df, num_lags, date_col, freq, data_start_date, index_start_date, admin_col, event_type_col, value_col, agg_func):
+def make_lagged_features(df, num_lags, date_col, freq, data_start_date, data_end_date, admin_col, event_type_col, value_col, agg_func):
+    # calculate the data_start_date to the beginning of the lags!
     df = df.loc[df[date_col] >= data_start_date, :]
-    # create wide pivot table 
-    # include the starting date, have that as label
-    piv = pd.DataFrame(df.groupby([pd.Grouper(key=date_col, freq=freq, closed='left', label='left'), admin_col, event_type_col])[value_col].agg(agg_func)).unstack().fillna(0)
-    # number of names in admin level
-    num_adm = len(df[admin_col].cat.categories)
-    # keep track of columns
-    orig_cols = list(piv.columns.droplevel(0))
-    cols = orig_cols.copy()
-    piv.columns = cols
-
-    # create lags
-    for i in range(1, num_lags+1):
-        cols_tmin = [f'{col}_t-{i}' for col in orig_cols]
-        cols.extend(cols_tmin)
-        piv.reindex(columns=cols)
-        piv[cols_tmin] = piv[orig_cols].shift(num_adm * i).values
-
-    # filter to after start date
-    date_index = piv.index.levels[0] 
-    after_start = date_index[date_index >= index_start_date]
-    piv = piv.loc[after_start, : ]
-    # drop non-lagged cols - uncomment to check work
-    piv = piv.loc[:, [c for c in piv.columns if c not in orig_cols]]
-    return piv
+    adm = list(df[admin_col].unique())
+    evt = list(df[event_type_col].unique())
+    # create date intervals
+    idx = pd.interval_range(start=data_start_date, end=df[date_col].max(), freq=freq, closed='left')
+    df[date_col] = idx[idx.get_indexer(df[date_col])]
+    df[date_col] = df[date_col].apply(lambda x: x.left.date())
+    # create wide pivot table of [fatalities by event type]
+    piv = pd.DataFrame(df.groupby([date_col, admin_col, event_type_col])[value_col].agg(agg_func)).unstack().fillna(0)
+    piv.columns = list(piv.columns.droplevel(0))    
+    piv = piv.reset_index()
+    # create key table with all date and admin1 combos
+    idx = pd.DataFrame([i.left.date() for i in idx], columns=[date_col])
+    admins = pd.DataFrame(adm, columns=[admin_col])
+    idx['tmp'] = 1
+    admins['tmp'] = 1
+    key = pd.merge(idx, admins, on=['tmp'])
+    key = key.drop('tmp', axis=1)
+    # merge together - this is to ensure all time intervals and admins are covered!
+    piv = pd.merge(key, piv, left_on=[date_col, admin_col], right_on=[date_col, admin_col], how='left')
+    piv[evt] = piv[evt].fillna(0)
+    
+    # set up for shifting data
+    idx = list(idx[date_col])
+    idx.sort()
+    evt_cols = [c for c in piv.columns if c not in [date_col, admin_col]]
+    ret = pd.DataFrame()
+    # start at the num_lags-th date to account for the lags
+    for i, ix in enumerate(idx[num_lags:]):
+        lag_lst = []
+        # get lagged data
+        for l in range(1, num_lags+1): 
+            cols_tmin = [f'{col}_t-{l}' for col in evt_cols]
+            one_lag = piv.loc[piv[date_col]==idx[i+l], :].drop(date_col, axis=1)
+            one_lag.columns = [admin_col] + cols_tmin
+            lag_lst.append(one_lag)
+        # combine to one dataframe
+        all_lags = reduce(lambda x, y: pd.merge(x, y, on = admin_col), lag_lst)
+        # keep track of the date we lagged from
+        all_lags[date_col] = ix
+        ret = pd.concat([ret, all_lags])
+    # filter to just the data we need
+    ret = ret.loc[ret[date_col] < data_end_date.date(), :]
+    return ret
 
 # COMMAND ----------
 
 lag = pd.DataFrame()
 
 for CO, CO_ACLED_NO in country_keys.items():
-    # query data
+    # query data to one country
     df = get_data(df_all, CO_ACLED_NO, 'ACLED_Admin1')
 
-    # data_start_date: where to start the data (beginning of the lags), calculate by multiplying num_lags and INTERVAL and subtracting from index_start_date
-    # index_start_date: where to start the feature set
-    # both dates should be a Monday (or match with INTERVAL)
-    d1 = make_lagged_features(df, 3, 'TimeFK_Event_Date', INTERVAL, dt.datetime(2019, 11, 18, 0, 0, 0), dt.datetime(2019, 12, 30, 0, 0, 0), 'ACLED_Admin1', 'ACLED_Event_Type', 'ACLED_Fatalities', 'sum')
-    # doesn't seem to be a way to implement sliding window with pd.Grouper, so doing this manually
-    d2 = make_lagged_features(df, 3, 'TimeFK_Event_Date', INTERVAL, dt.datetime(2019, 11, 25, 0, 0, 0), dt.datetime(2020, 1, 6, 0, 0, 0), 'ACLED_Admin1', 'ACLED_Event_Type', 'ACLED_Fatalities', 'sum')
+    # data_start_date: where to start the data (beginning of the lags), 
+    # # # calculate by multiplying num_lags and INTERVAL and subtracting from where to start the feature set 
+    # # # feature set start date is: 2019, 12, 30 - make sure this and data_start_date are in line with INTERVAL (a MONDAY!)
+    # data_end_date: where to cut off the feature set
+    d1 = make_lagged_features(df, 3, 'TimeFK_Event_Date', INTERVAL, dt.datetime(2019, 11, 18), dt.datetime(2023, 5, 1), 'ACLED_Admin1', 'ACLED_Event_Type', 'ACLED_Fatalities', 'sum')
+    # doesn't seem to be a way to implement sliding window, so doing this manually
+    # feature start date is 2020, 1, 6
+    d2 = make_lagged_features(df, 3, 'TimeFK_Event_Date', INTERVAL, dt.datetime(2019, 11, 25), dt.datetime(2023, 5, 1), 'ACLED_Admin1', 'ACLED_Event_Type', 'ACLED_Fatalities', 'sum')
 
     # concat together, sort, clean
     d = pd.concat([d1, d2])
-    d = d.reset_index().sort_values('TimeFK_Event_Date')
+    d = d.sort_values('TimeFK_Event_Date')
     d['COUNTRY'] = CO
     lag = pd.concat([lag, d])
 
@@ -138,7 +161,7 @@ def get_time_since_df(df, m_since_lst, date_col, freq, admin_col, event_type_col
     idx = pd.interval_range(start=start_time, end=end_time, freq=freq, closed='left')
     df[date_col] = idx[idx.get_indexer(df[date_col])]
     df[date_col] = df[date_col].apply(lambda x: x.left.date())
-    # create wide pivot table
+    # create wide pivot table 
     piv = pd.DataFrame(df.groupby([date_col, admin_col, event_type_col])[value_col].sum()).unstack().fillna(0)
     piv.columns = list(piv.columns.droplevel(0))
     piv = piv.reset_index()
@@ -149,7 +172,7 @@ def get_time_since_df(df, m_since_lst, date_col, freq, admin_col, event_type_col
     admins['tmp'] = 1
     key = pd.merge(idx, admins, on=['tmp'])
     key = key.drop('tmp', axis=1)
-    # merge together
+    # merge together - this is to ensure all time intervals and admins are covered!
     data = pd.merge(key, piv, left_on=[date_col, admin_col], right_on=[date_col, admin_col], how='left')
     data[evt] = data[evt].fillna(0)
 
@@ -207,12 +230,90 @@ ts
 
 # COMMAND ----------
 
-ts['a'] = ts['STARTDATE'].astype(str)+ts['ADMIN1']
-lag['a'] = lag['STARTDATE'].astype(str)+lag['ADMIN1']
-a = list(lag.a)
-b = list(ts.a)
-c=[x for x in a if x not in b]
-d=[x for x in b if x not in a]
+# ts['a'] = ts['STARTDATE'].astype(str)+ts['ADMIN1']
+# lag['a'] = lag['STARTDATE'].astype(str)+lag['ADMIN1']
+# a = list(lag.a)
+# b = list(ts.a)
+# c=[x for x in a if x not in b]
+# d=[x for x in b if x not in a]
+
+# COMMAND ----------
+
+ts['STARTDATE'] = ts['STARTDATE'].astype(str)
+lag['STARTDATE'] = lag['STARTDATE'].astype(str)
+
+# COMMAND ----------
+
+m=pd.merge(lag, ts, left_on=['STARTDATE','ADMIN1', 'COUNTRY'], right_on=['STARTDATE','ADMIN1', 'COUNTRY'], how='outer')
+
+# COMMAND ----------
+
+n=m[m.isnull().any(axis=1)]
+
+# COMMAND ----------
+
+pd.options.display.max_rows = 100
+
+# COMMAND ----------
+
+n.columns
+
+# COMMAND ----------
+
+n1 = n[['STARTDATE', 'ADMIN1', 'Battles_t-1',
+       'Explosions/Remote violence_t-1', 'Protests_t-1', 'Riots_t-1',
+       'Strategic developments_t-1', 'Violence against civilians_t-1',
+       'Battles_t-2', 'Explosions/Remote violence_t-2', 'Protests_t-2',
+       'Riots_t-2', 'Strategic developments_t-2',
+       'Violence against civilians_t-2', 'Battles_t-3',
+       'Explosions/Remote violence_t-3', 'Protests_t-3', 'Riots_t-3',
+       'Strategic developments_t-3', 'Violence against civilians_t-3',
+       'COUNTRY']]
+
+# COMMAND ----------
+
+n2 = n[['STARTDATE', 'ADMIN1', 'COUNTRY', 'Strategic developments_since_1_death',
+       'Battles_since_1_death', 'Violence against civilians_since_1_death',
+       'Protests_since_1_death', 'Explosions/Remote violence_since_1_death',
+       'Riots_since_1_death', 'Strategic developments_since_5_death',
+       'Battles_since_5_death', 'Violence against civilians_since_5_death',
+       'Protests_since_5_death', 'Explosions/Remote violence_since_5_death',
+       'Riots_since_5_death', 'Strategic developments_since_20_death',
+       'Battles_since_20_death', 'Violence against civilians_since_20_death',
+       'Protests_since_20_death', 'Explosions/Remote violence_since_20_death',
+       'Riots_since_20_death']]
+
+# COMMAND ----------
+
+a1 = df_all.filter((df_all.CountryFK==214) & (df_all.ACLED_Admin1=='Red Sea'))
+
+# COMMAND ----------
+
+a1 = a1.toPandas()
+
+# COMMAND ----------
+
+a1
+
+# COMMAND ----------
+
+a1['TimeFK_Event_Date'] = a1['TimeFK_Event_Date'].apply(lambda x: dt.datetime.strptime(str(x),'%Y%m%d'))
+
+# COMMAND ----------
+
+a1[(a1.TimeFK_Event_Date >= dt.datetime(2019,12,2)) & (a1.TimeFK_Event_Date < dt.datetime(2019,12,16))]
+
+# COMMAND ----------
+
+n1[n1.isnull().any(axis=1)]
+
+# COMMAND ----------
+
+n1[n1.COUNTRY=='ER']
+
+# COMMAND ----------
+
+n2[n2.isnull().any(axis=1)]
 
 # COMMAND ----------
 
