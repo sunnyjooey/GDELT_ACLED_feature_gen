@@ -91,18 +91,19 @@ def make_lagged_features(df, num_lags, date_col, freq, data_start_date, data_end
     evt_cols = [c for c in piv.columns if c not in [date_col, admin_col]]
     ret = pd.DataFrame()
     # start at the num_lags-th date to account for the lags
-    for i, ix in enumerate(idx[num_lags:]):
+    for i in range(num_lags, len(idx)):
         lag_lst = []
         # get lagged data
         for l in range(1, num_lags+1): 
             cols_tmin = [f'{col}_t-{l}' for col in evt_cols]
-            one_lag = piv.loc[piv[date_col]==idx[i+l], :].drop(date_col, axis=1)
+            # print(idx[i], idx[i-l])
+            one_lag = piv.loc[piv[date_col]==idx[i-l], :].drop(date_col, axis=1)
             one_lag.columns = [admin_col] + cols_tmin
             lag_lst.append(one_lag)
         # combine to one dataframe
         all_lags = reduce(lambda x, y: pd.merge(x, y, on = admin_col), lag_lst)
         # keep track of the date we lagged from
-        all_lags[date_col] = ix
+        all_lags[date_col] = idx[i]
         ret = pd.concat([ret, all_lags])
     # filter to just the data we need
     ret = ret.loc[ret[date_col] < data_end_date.date(), :]
@@ -226,16 +227,7 @@ ts
 
 # COMMAND ----------
 
-
-
-# COMMAND ----------
-
-# ts['a'] = ts['STARTDATE'].astype(str)+ts['ADMIN1']
-# lag['a'] = lag['STARTDATE'].astype(str)+lag['ADMIN1']
-# a = list(lag.a)
-# b = list(ts.a)
-# c=[x for x in a if x not in b]
-# d=[x for x in b if x not in a]
+pd.options.display.max_rows = 100
 
 # COMMAND ----------
 
@@ -249,14 +241,6 @@ m=pd.merge(lag, ts, left_on=['STARTDATE','ADMIN1', 'COUNTRY'], right_on=['STARTD
 # COMMAND ----------
 
 n=m[m.isnull().any(axis=1)]
-
-# COMMAND ----------
-
-pd.options.display.max_rows = 100
-
-# COMMAND ----------
-
-n.columns
 
 # COMMAND ----------
 
@@ -293,23 +277,19 @@ a1 = a1.toPandas()
 
 # COMMAND ----------
 
-a1
-
-# COMMAND ----------
-
 a1['TimeFK_Event_Date'] = a1['TimeFK_Event_Date'].apply(lambda x: dt.datetime.strptime(str(x),'%Y%m%d'))
 
 # COMMAND ----------
 
-a1[(a1.TimeFK_Event_Date >= dt.datetime(2019,12,2)) & (a1.TimeFK_Event_Date < dt.datetime(2019,12,16))]
+a1[(a1.TimeFK_Event_Date >= dt.datetime(2019,11,18)) & (a1.TimeFK_Event_Date < dt.datetime(2019,12,31))]
+
+# COMMAND ----------
+
+m.head()
 
 # COMMAND ----------
 
 n1[n1.isnull().any(axis=1)]
-
-# COMMAND ----------
-
-n1[n1.COUNTRY=='ER']
 
 # COMMAND ----------
 
