@@ -8,7 +8,7 @@ from functools import reduce
 
 # 2-week intervals starting on monday
 INTERVAL = '2W-MON'
-
+# country codes
 country_keys = {
     'SU': 214,
     'OD': 227,
@@ -66,8 +66,8 @@ def make_lagged_features(df, num_lags, date_col, freq, data_start_date, data_end
     df = df.loc[df[date_col] >= data_start_date, :]
     adm = list(df[admin_col].unique())
     evt = list(df[event_type_col].unique())
-    # create date intervals
-    idx = pd.interval_range(start=data_start_date, end=df[date_col].max(), freq=freq, closed='left')
+    # create date intervals (add 1 week to data_end_date to capture to the end of the data)
+    idx = pd.interval_range(start=data_start_date, end=data_end_date+dt.timedelta(weeks=1), freq=freq, closed='left')
     df[date_col] = idx[idx.get_indexer(df[date_col])]
     df[date_col] = df[date_col].apply(lambda x: x.left.date())
     # create wide pivot table of [fatalities by event type]
@@ -108,6 +108,7 @@ def make_lagged_features(df, num_lags, date_col, freq, data_start_date, data_end
     # filter to just the data we need
     ret = ret.loc[ret[date_col] < data_end_date.date(), :]
     return ret
+
 
 # COMMAND ----------
 
@@ -212,6 +213,8 @@ for CO, CO_ACLED_NO in country_keys.items():
     # convert admin to category - make sure admins are not left out in groupby
     s1 = get_time_since_df(df, [1, 5, 20], 'TimeFK_Event_Date', INTERVAL, 'ACLED_Admin1', 'ACLED_Event_Type', 'ACLED_Fatalities', dt.datetime(2011,1,1,0,0,0), dt.datetime(2023,5,1,0,0,0))
     s2 = get_time_since_df(df, [1, 5, 20], 'TimeFK_Event_Date', INTERVAL, 'ACLED_Admin1', 'ACLED_Event_Type', 'ACLED_Fatalities', dt.datetime(2011,1,8,0,0,0), dt.datetime(2023,5,1,0,0,0))
+    # make sure max is the same
+    assert s1.max().max() == s2.max().max(), 'adjust start_time or end_time to make sure maxes match!'
 
     # concat together, sort, clean
     s = pd.concat([s1, s2])
@@ -227,74 +230,58 @@ ts
 
 # COMMAND ----------
 
-pd.options.display.max_rows = 100
-
-# COMMAND ----------
-
-ts['STARTDATE'] = ts['STARTDATE'].astype(str)
+# keep only common startdates
 lag['STARTDATE'] = lag['STARTDATE'].astype(str)
+ts['STARTDATE'] = ts['STARTDATE'].astype(str)
+times = set(lag['STARTDATE']).intersection(set(ts['STARTDATE']))
+lag = lag[lag['STARTDATE'].isin(times)]
+ts = ts[ts['STARTDATE'].isin(times)]
 
 # COMMAND ----------
 
-m=pd.merge(lag, ts, left_on=['STARTDATE','ADMIN1', 'COUNTRY'], right_on=['STARTDATE','ADMIN1', 'COUNTRY'], how='outer')
+# merge features together
+mrg = pd.merge(lag, ts, left_on=['STARTDATE','ADMIN1','COUNTRY'], right_on=['STARTDATE','ADMIN1','COUNTRY'], how='outer')
 
 # COMMAND ----------
 
-n=m[m.isnull().any(axis=1)]
+# data cleaning - these admin 1 don't exist anymore
+mrg = mrg.loc[(mrg['COUNTRY']!='SU') & (~mrg['ADMIN1'].isin(['Bahr el Ghazal', 'Equatoria', 'Upper Nile'])), :] 
+# fill in NAs - extensive checking has been done to make sure this is valid
+mrg = mrg.fillna(0)
 
 # COMMAND ----------
 
-n1 = n[['STARTDATE', 'ADMIN1', 'Battles_t-1',
-       'Explosions/Remote violence_t-1', 'Protests_t-1', 'Riots_t-1',
-       'Strategic developments_t-1', 'Violence against civilians_t-1',
-       'Battles_t-2', 'Explosions/Remote violence_t-2', 'Protests_t-2',
-       'Riots_t-2', 'Strategic developments_t-2',
-       'Violence against civilians_t-2', 'Battles_t-3',
-       'Explosions/Remote violence_t-3', 'Protests_t-3', 'Riots_t-3',
-       'Strategic developments_t-3', 'Violence against civilians_t-3',
-       'COUNTRY']]
+# reorder
+cols = [c for c in mrg.columns if c not in ['STARTDATE', 'COUNTRY', 'ADMIN1']]
+cols = ['STARTDATE', 'COUNTRY', 'ADMIN1'] + cols
+mrg = mrg[cols]
 
 # COMMAND ----------
 
-n2 = n[['STARTDATE', 'ADMIN1', 'COUNTRY', 'Strategic developments_since_1_death',
-       'Battles_since_1_death', 'Violence against civilians_since_1_death',
-       'Protests_since_1_death', 'Explosions/Remote violence_since_1_death',
-       'Riots_since_1_death', 'Strategic developments_since_5_death',
-       'Battles_since_5_death', 'Violence against civilians_since_5_death',
-       'Protests_since_5_death', 'Explosions/Remote violence_since_5_death',
-       'Riots_since_5_death', 'Strategic developments_since_20_death',
-       'Battles_since_20_death', 'Violence against civilians_since_20_death',
-       'Protests_since_20_death', 'Explosions/Remote violence_since_20_death',
-       'Riots_since_20_death']]
+mrg
 
 # COMMAND ----------
 
-a1 = df_all.filter((df_all.CountryFK==214) & (df_all.ACLED_Admin1=='Red Sea'))
+# check for NAs
+# n = mrg[mrg.isnull().any(axis=1)]
+# n1 = n[['STARTDATE','COUNTRY', 'ADMIN1', 'Battles_t-1',
+#        'Explosions/Remote violence_t-1', 'Protests_t-1', 'Riots_t-1',
+#        'Strategic developments_t-1', 'Violence against civilians_t-1',
+#        'Battles_t-2', 'Explosions/Remote violence_t-2', 'Protests_t-2',
+#        'Riots_t-2', 'Strategic developments_t-2',
+#        'Violence against civilians_t-2', 'Battles_t-3',
+#        'Explosions/Remote violence_t-3', 'Protests_t-3', 'Riots_t-3',
+#        'Strategic developments_t-3', 'Violence against civilians_t-3']]
+# n2 = n[['STARTDATE', 'COUNTRY', 'ADMIN1', 'Strategic developments_since_1_death',
+#        'Battles_since_1_death', 'Violence against civilians_since_1_death',
+#        'Protests_since_1_death', 'Explosions/Remote violence_since_1_death',
+#        'Riots_since_1_death', 'Strategic developments_since_5_death',
+#        'Battles_since_5_death', 'Violence against civilians_since_5_death',
+#        'Protests_since_5_death', 'Explosions/Remote violence_since_5_death',
+#        'Riots_since_5_death', 'Strategic developments_since_20_death',
+#        'Battles_since_20_death', 'Violence against civilians_since_20_death',
+#        'Protests_since_20_death', 'Explosions/Remote violence_since_20_death',
+#        'Riots_since_20_death']]       
 
-# COMMAND ----------
-
-a1 = a1.toPandas()
-
-# COMMAND ----------
-
-a1['TimeFK_Event_Date'] = a1['TimeFK_Event_Date'].apply(lambda x: dt.datetime.strptime(str(x),'%Y%m%d'))
-
-# COMMAND ----------
-
-a1[(a1.TimeFK_Event_Date >= dt.datetime(2019,11,18)) & (a1.TimeFK_Event_Date < dt.datetime(2019,12,31))]
-
-# COMMAND ----------
-
-m.head()
-
-# COMMAND ----------
-
-n1[n1.isnull().any(axis=1)]
-
-# COMMAND ----------
-
-n2[n2.isnull().any(axis=1)]
-
-# COMMAND ----------
-
-
+# n1[n1.isnull().any(axis=1)]
+# n2[n2.isnull().any(axis=1)] 
