@@ -255,10 +255,20 @@ mrg = mrg.fillna(0)
 cols = [c for c in mrg.columns if c not in ['STARTDATE', 'COUNTRY', 'ADMIN1']]
 cols = ['STARTDATE', 'COUNTRY', 'ADMIN1'] + cols
 mrg = mrg[cols]
+mrg.columns = [c.replace('/','_').replace(' ','_') for c in mrg.columns]
 
 # COMMAND ----------
 
 mrg
+
+# COMMAND ----------
+
+spark.conf.set("spark.sql.execution.arrow.pyspark.enabled", "true")
+mrg = spark.createDataFrame(mrg)
+
+# COMMAND ----------
+
+mrg.write.mode('append').format('delta').saveAsTable("news_media.horn_africa_acled_confhist_2w_gld")
 
 # COMMAND ----------
 
