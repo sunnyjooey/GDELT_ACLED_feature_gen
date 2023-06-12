@@ -245,7 +245,7 @@ mrg = pd.merge(lag, ts, left_on=['STARTDATE','ADMIN1','COUNTRY'], right_on=['STA
 # COMMAND ----------
 
 # data cleaning - these admin 1 don't exist anymore
-mrg = mrg.loc[(mrg['COUNTRY']!='SU') & (~mrg['ADMIN1'].isin(['Bahr el Ghazal', 'Equatoria', 'Upper Nile'])), :] 
+mrg = mrg.loc[~((mrg['COUNTRY']=='SU') & (mrg['ADMIN1'].isin(['Bahr el Ghazal', 'Equatoria', 'Upper Nile']))), :] 
 # fill in NAs - extensive checking has been done to make sure this is valid
 mrg = mrg.fillna(0)
 
@@ -274,24 +274,7 @@ mrg.write.mode('append').format('delta').saveAsTable("news_media.horn_africa_acl
 
 # check for NAs
 # n = mrg[mrg.isnull().any(axis=1)]
-# n1 = n[['STARTDATE','COUNTRY', 'ADMIN1', 'Battles_t-1',
-#        'Explosions/Remote violence_t-1', 'Protests_t-1', 'Riots_t-1',
-#        'Strategic developments_t-1', 'Violence against civilians_t-1',
-#        'Battles_t-2', 'Explosions/Remote violence_t-2', 'Protests_t-2',
-#        'Riots_t-2', 'Strategic developments_t-2',
-#        'Violence against civilians_t-2', 'Battles_t-3',
-#        'Explosions/Remote violence_t-3', 'Protests_t-3', 'Riots_t-3',
-#        'Strategic developments_t-3', 'Violence against civilians_t-3']]
-# n2 = n[['STARTDATE', 'COUNTRY', 'ADMIN1', 'Strategic developments_since_1_death',
-#        'Battles_since_1_death', 'Violence against civilians_since_1_death',
-#        'Protests_since_1_death', 'Explosions/Remote violence_since_1_death',
-#        'Riots_since_1_death', 'Strategic developments_since_5_death',
-#        'Battles_since_5_death', 'Violence against civilians_since_5_death',
-#        'Protests_since_5_death', 'Explosions/Remote violence_since_5_death',
-#        'Riots_since_5_death', 'Strategic developments_since_20_death',
-#        'Battles_since_20_death', 'Violence against civilians_since_20_death',
-#        'Protests_since_20_death', 'Explosions/Remote violence_since_20_death',
-#        'Riots_since_20_death']]       
 
-# n1[n1.isnull().any(axis=1)]
-# n2[n2.isnull().any(axis=1)] 
+# COMMAND ----------
+
+
