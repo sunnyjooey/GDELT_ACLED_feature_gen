@@ -91,27 +91,26 @@ def process_data(data):
 
 # COMMAND ----------
 
- def get_escalation_binary(data, fat_column,admin1_col):
+def get_escalation_binary(data, fat_column,admin1_col):
     # Create a copy of the DataFrame to prevent modifications to the original object
     data = data.copy()
 
     # Calculate increase in fatalities
-    data['abs_change'] = data.groupby(admin1_col)[fat_column].diff().abs()
+    data['abs_change'] = data.groupby(admin1_col)[fat_column].diff()
 
     # Percentage increase
     smoothing_factor = 1e-10
     data['pct_increase'] = (data['abs_change'] / (data.groupby(admin1_col)[fat_column].shift() + smoothing_factor)) * 100
 
     # Create a new column for binary_escalation
-    data['binary_escalation'] = None
+    data['binary_escalation'] = 0
 
     # Apply thresholds for binary_escalation
     data.loc[(data[fat_column] >= 100) & (data['pct_increase'] >= 10), 'binary_escalation'] = 1
-    data.loc[(data[fat_column] < 100) & (data['abs_change'] > 10), 'binary_escalation'] = 0
+    data.loc[(data[fat_column] < 100) & (data['abs_change'] >= 10), 'binary_escalation'] = 1
 
     # Return the modified DataFrame
     return data
-
 
 # COMMAND ----------
 
@@ -124,20 +123,10 @@ data = process_data(df)
 
 # COMMAND ----------
 
-feat = spark.sql("SELECT * FROM news_media.horn_africa_acled_confhist_2w_gld")
-feat = feat.toPandas()
+# change column names for easier merging and cleaning
+data = data.rename(columns={'TimeFK_Event_Date':'STARTDATE', 'ACLED_Admin1':'ADMIN1', 'ACLED_Fatalities':'FATALSUM', 'CountryFK':'COUNTRY'})
 
-# COMMAND ----------
-
-feat[feat['COUNTRY']=='OD']['ADMIN1'].unique()
-
-# COMMAND ----------
-
-dat = data.loc[data['TimeFK_Event_Date'] <= feat['STARTDATE'].max()]
-dat['TimeFK_Event_Date'] = dat['TimeFK_Event_Date'].astype(str)  # makes merges easier
-
-# COMMAND ----------
-
+# change to 2 letter codes for merging
 country_keys = {
     214: 'SU',
     227: 'OD',
@@ -149,50 +138,50 @@ country_keys = {
     175: 'KE'
 }
 
-dat['CountryFK'] = dat['CountryFK'].map(country_keys)
+data['COUNTRY'] = data['COUNTRY'].map(country_keys)
 
 # COMMAND ----------
 
-f = feat.iloc[:, :4]
-f.head()
+# read in feature set for checking
+feat = spark.sql("SELECT * FROM news_media.horn_africa_acled_confhist_2w_gld")
+feat = feat.toPandas()
+# keep only one feature column to make checking easier
+feat = feat.iloc[:, :4]
 
 # COMMAND ----------
 
-m = pd.merge(f, dat, left_on=['STARTDATE','ADMIN1','COUNTRY'], right_on=['TimeFK_Event_Date','ACLED_Admin1','CountryFK'], how='outer')
+# filter fatal data to match feature set's dates
+data = data.loc[data['STARTDATE'] <= feat['STARTDATE'].max()]
+# change to string to make merge easier
+data['STARTDATE'] = data['STARTDATE'].astype(str)  
 
 # COMMAND ----------
 
+# merge feature set and fatal data
+m = pd.merge(feat, data, left_on=['STARTDATE','ADMIN1','COUNTRY'], right_on=['STARTDATE','ADMIN1','COUNTRY'], how='outer')
+
+# COMMAND ----------
+
+# check nans
+print(m.isnull().sum())
 m[pd.isnull(m).any(axis=1)]
 
 # COMMAND ----------
 
-m.isnull().sum()
+# # these admin 1s are missing in the fata data because they had no events - fill with 0
+# m[m.FATALSUM.isnull()]['ADMIN1'].unique()
+m = m.fillna({'FATALSUM': 0})
 
 # COMMAND ----------
 
-m[m.ACLED_Admin1.isnull()]['ADMIN1'].unique()
+# # these are erroneous - drop from data
+# m[m.COUNTRY.isnull()]['ADMIN1'].unique()
+m = m.dropna()
 
 # COMMAND ----------
 
-m[(m.ADMIN1.isnull()) & (m.CountryFK!='SU') & (m.ACLED_Admin1!='Rwampara')]
-
-# COMMAND ----------
-
-SHAPEFILE = '/dbfs/FileStore/df/shapefiles/southsudan_adm1/ssd_admbnda_adm1_imwg_nbs_20221219.shp'
-
-# COMMAND ----------
-
-!pip install pysal
-!pip install descartes
-
-# COMMAND ----------
-
-import geopandas as gpd
-gdf = gpd.read_file(SHAPEFILE)
-
-# COMMAND ----------
-
-gdf
+# select only needed columns
+data = m.loc[:, ['STARTDATE', 'COUNTRY', 'ADMIN1', 'FATALSUM']].copy()
 
 # COMMAND ----------
 
@@ -205,140 +194,8 @@ data
 
 # COMMAND ----------
 
-escalation_data =get_escalation_binary(data, 'ACLED_Fatalities', 'ACLED_Admin1')
-
-# COMMAND ----------
-
+escalation_data = get_escalation_binary(data, 'FATALSUM', 'ADMIN1')
 escalation_data[escalation_data['binary_escalation']== 1]
-
-# COMMAND ----------
-
-# Group the data by country and calculate the total fatalities over time
-grouped_df = escalation_data.groupby(['CountryFK', 'TimeFK_Event_Date']).agg({'ACLED_Fatalities': 'sum'}).reset_index()
-
-##start_date = pd.to_datetime('2020-01-30')
-##end_date = pd.to_datetime('2021-09-30')
-
-#grouped_df = grouped_df[
-    #(grouped_df['TimeFK_Event_Date'].dt.year.between(start_date.year, end_date.year)) &
-    #(grouped_df['TimeFK_Event_Date'].dt.month.between(start_date.month, end_date.month))]
-
-# Map the country codes to country names
-grouped_df['CountryFK'] = grouped_df['CountryFK'].map(country_codes)
-plt.figure(figsize=(30, 10)) 
-
-# Plotting the fatalities over time by country
-for country_code in grouped_df['CountryFK'].unique():
-    country_data = grouped_df[grouped_df['CountryFK'] == country_code]
-    plt.plot(country_data['TimeFK_Event_Date'], country_data['ACLED_Fatalities'], label=country_code)
-
-# Filter escalation data based on start and end dates
-
-
-# Markers for escalation binary
-escalation_df = escalation_data[escalation_data['binary_escalation'] == 1]
-# Filter escalation data based on start and end dates
-#escalation_df = escalation_df[
-    #(escalation_df['TimeFK_Event_Date'].dt.year.between(start_date.year, end_date.year)) &
-    #(escalation_df['TimeFK_Event_Date'].dt.month.between(start_date.month, end_date.month))] 
-
-plt.plot(escalation_df['TimeFK_Event_Date'], escalation_df['ACLED_Fatalities'], marker='o', linestyle='', color='black', label='Escalation')
-
-plt.xlabel('Time')
-plt.ylabel('Fatalities')
-plt.title('Fatalities Over Time by Country')
-plt.legend()
-plt.show()
-
-# COMMAND ----------
-
-country_codes = {
-    214: 'Sudan',
-    227: 'South Sudan',
-    108: 'Ethiopia',
-    104: 'Eritrea',
-    97: 'Djibouti',
-    224: 'Somalia',
-    235: 'Uganda',
-    175: 'Kenya'
-}
-
-country_key_code = {
-    'SU': 'Sudan',
-    'OD': 'South Sudan',
-    'ET': 'Ethiopia',
-    'ER': 'Eritrea',
-    'DJ': 'Djibouti',
-    'SO': 'Somalia',
-    'UG': 'Uganda',
-    'KE': 'Kenya'
-}
-
-
-# COMMAND ----------
-
-#add in country foreign keys: Sudan SU, South Sudan OD,  Ethiopia ET, Eritrea ER, Dijibouti DJ, Somalia SO, Uganda UG, Kenya KE
-country_keys = {
-    214: 'SU',
-    227: 'OD',
-    108: 'ET',
-    104: 'ER',
-    97: 'DJ',
-    224: 'SO',
-    235: 'UG',
-    175: 'KE'
-}
-
-escalation_data['Country_Key'] = escalation_data['CountryFK'].map(country_keys)
-
-# COMMAND ----------
-
-escalation_data
-
-# COMMAND ----------
-
-######## PLOT TO DOUBLE CHECK ############
-
-
-# Group the data by country and calculate the total fatalities over time
-grouped_df = escalation_data.groupby(['Country_Key', 'TimeFK_Event_Date']).agg({'ACLED_Fatalities': 'sum'}).reset_index()
-
-# Define start and end dates for filtering
-#start_date = pd.to_datetime('2020-01-30')
-#end_date = pd.to_datetime('2021-09-30')
-
-# Filter grouped_df based on start and end dates
-#grouped_df = grouped_df[
-   # (grouped_df['TimeFK_Event_Date'].dt.year.between(start_date.year, end_date.year)) &
-   # (grouped_df['TimeFK_Event_Date'].dt.month.between(start_date.month, end_date.month))]
-
-# Map the country codes to country names
-grouped_df['Country_Key'] = grouped_df['Country_Key'].map(country_key_code)
-
-# Create the plot
-plt.figure(figsize=(30, 10))
-
-# Plotting the fatalities over time by country
-for country_code in grouped_df['Country_Key'].unique():
-    country_data = grouped_df[grouped_df['Country_Key'] == country_code]
-    plt.plot(country_data['TimeFK_Event_Date'], country_data['ACLED_Fatalities'], label=country_code)
-
-# Filter escalation data based on start and end dates
-escalation_df = escalation_data[escalation_data['binary_escalation'] == 1]
-#escalation_df = escalation_df[
-   # (escalation_df['TimeFK_Event_Date'].dt.year.between(start_date.year, end_date.year)) &
-   # (escalation_df['TimeFK_Event_Date'].dt.month.between(start_date.month, end_date.month))]
-
-# Plot escalation events
-plt.plot(escalation_df['TimeFK_Event_Date'], escalation_df['ACLED_Fatalities'],
-         marker='o', linestyle='', color='black', label='Escalation')
-
-plt.xlabel('Time')
-plt.ylabel('Fatalities')
-plt.title('Fatalities Over Time by Country')
-plt.legend()
-plt.show()
-
 
 # COMMAND ----------
 
@@ -347,81 +204,12 @@ plt.show()
 
 # COMMAND ----------
 
-
 # convert to spark dataframe
 spark.conf.set("spark.sql.execution.arrow.pyspark.enabled", "true")
 escalation_data = spark.createDataFrame(escalation_data)
 
-
-
 DATABASE_NAME = 'news_media'
-
 DATA_TABLE = 'horn_africa_acled_fatal_1w_10a10p_bin_gld'
-
 
 # save in delta lake
 escalation_data.write.mode('append').format('delta').saveAsTable("{}.{}".format(DATABASE_NAME, DATA_TABLE))
-
-
-
-# COMMAND ----------
-
-DATABASE_NAME= 'news_media'
-INPUT_TABLE_NAME='horn_africa_acled_fatal_1w_10a10p_bin_gld'
-
-# COMMAND ----------
-
-TEST = spark.sql(f"SELECT * FROM {DATABASE_NAME}.{INPUT_TABLE_NAME}") 
-
-# COMMAND ----------
-
-display(TEST)
-
-# COMMAND ----------
-
-TEST = TEST.toPandas()
-TEST
-
-# COMMAND ----------
-
-CHECK_TEST =TEST[TEST['binary_escalation'] == 1]
-CHECK_TEST
-
-# COMMAND ----------
-
-# Group the data by country and calculate the total fatalities over time
-grouped_df = TEST.groupby(['CountryFK', 'TimeFK_Event_Date']).agg({'ACLED_Fatalities': 'sum'}).reset_index()
-
-##start_date = pd.to_datetime('2020-01-30')
-##end_date = pd.to_datetime('2021-09-30')
-
-#grouped_df = grouped_df[
-    #(grouped_df['TimeFK_Event_Date'].dt.year.between(start_date.year, end_date.year)) &
-    #(grouped_df['TimeFK_Event_Date'].dt.month.between(start_date.month, end_date.month))]
-
-# Map the country codes to country names
-grouped_df['CountryFK'] = grouped_df['CountryFK'].map(country_codes)
-plt.figure(figsize=(30, 10)) 
-
-# Plotting the fatalities over time by country
-for country_code in grouped_df['CountryFK'].unique():
-    country_data = grouped_df[grouped_df['CountryFK'] == country_code]
-    plt.plot(country_data['TimeFK_Event_Date'], country_data['ACLED_Fatalities'], label=country_code)
-
-# Filter escalation data based on start and end dates
-
-
-# Markers for escalation binary
-escalation_df = TEST[TEST['binary_escalation'] == 1]
-# Filter escalation data based on start and end dates
-#escalation_df = escalation_df[
-    #(escalation_df['TimeFK_Event_Date'].dt.year.between(start_date.year, end_date.year)) &
-    #(escalation_df['TimeFK_Event_Date'].dt.month.between(start_date.month, end_date.month))] 
-
-plt.plot(escalation_df['TimeFK_Event_Date'], escalation_df['ACLED_Fatalities'], marker='o', linestyle='', color='black', label='Escalation')
-
-plt.xlabel('Time')
-plt.ylabel('Fatalities')
-plt.title('Fatalities Over Time by Country')
-plt.legend()
-plt.show()
