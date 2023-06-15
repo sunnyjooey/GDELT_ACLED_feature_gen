@@ -20,9 +20,9 @@ print(CO)
 
 co = CO.lower()
 DATABASE_NAME = 'news_media'
-EVTSLV_TABLE_NAME = f'horn_africa_gdelt_events_{co}_slv'
+EVTSLV_TABLE_NAME = f'horn_africa_gdelt_events_a1_slv'
 EMB_TABLE_NAME = 'horn_africa_gdelt_gsgembed_brz'
-OUTPUT_TABLE_NAME = f'horn_africa_gdelt_gsgembed_{co}_2w_slv'
+OUTPUT_TABLE_NAME = ''
 
 # COMMAND ----------
 
@@ -82,6 +82,27 @@ print(df.count())
 
 # save
 df.write.mode('append').format('delta').saveAsTable("{}.{}".format(DATABASE_NAME, OUTPUT_TABLE_NAME))
+
+# COMMAND ----------
+
+# ### go back and save in one dataframe to decrease the number of tables
+# from functools import reduce
+# from pyspark.sql import DataFrame
+# from pyspark.sql.functions import lit
+
+# countries = ['SU', 'OD', 'ET', 'ER', 'DJ', 'SO', 'UG', 'KE']
+
+# dfs = []
+# for co in countries:
+#     c = co.lower()
+#     cdf = spark.sql(f"SELECT * FROM news_media.horn_africa_gdelt_gsgembed_{c}_2w_slv")
+#     cdf = cdf.withColumn('COUNTRY', lit(co))
+#     dfs.append(cdf)
+
+# dfs = reduce(DataFrame.unionAll, dfs)
+# cols = ['STARTDATE', 'ENDDATE', 'ADMIN1', 'COUNTRY'] + list(np.arange(512).astype(str))
+# dfs = dfs.select(*cols)
+# dfs.write.mode('append').format('delta').saveAsTable(f'news_media.horn_africa_gdelt_gsgembed_2w_a1_5050_slv')
 
 # COMMAND ----------
 
