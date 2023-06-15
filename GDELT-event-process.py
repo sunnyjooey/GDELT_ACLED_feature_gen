@@ -232,4 +232,24 @@ long_df.write.mode('append').format('delta').saveAsTable("{}.{}".format(DATABASE
 
 # COMMAND ----------
 
+# ### go back and save in one dataframe to decrease the number of tables
+# from functools import reduce
+# from pyspark.sql import DataFrame
+# from pyspark.sql.functions import lit
+
+# df_code = 'a1'
+# countries = ['SU', 'OD', 'ET', 'ER', 'DJ', 'SO', 'UG', 'KE']
+
+# dfs = []
+# for co in countries:
+#     c = co.lower()
+#     cdf = spark.sql(f"SELECT * FROM news_media.horn_africa_gdelt_events_{c}_slv")
+#     cdf = cdf.withColumn('COUNTRY', lit(co))
+#     dfs.append(cdf)
+
+# dfs = reduce(DataFrame.unionAll, dfs)
+# dfs.write.mode('append').format('delta').saveAsTable(f'news_media.horn_africa_gdelt_events_{df_code}_slv')
+
+# COMMAND ----------
+
 
