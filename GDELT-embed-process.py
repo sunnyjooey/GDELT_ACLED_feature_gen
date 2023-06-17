@@ -8,16 +8,6 @@ from pyspark.sql import DataFrame
 
 # COMMAND ----------
 
-# from pyspark.sql import SparkSession
-# from pyspark.dbutils import DBUtils
-
-# spark = SparkSession.builder.getOrCreate()
-# dbutils = DBUtils(spark)
-# CO = dbutils.widgets.get("CO")
-# print(CO)
-
-# COMMAND ----------
-
 DATABASE_NAME = 'news_media'
 EVTSLV_TABLE_NAME = f'horn_africa_gdelt_events_a1_slv'
 EMB_TABLE_NAME = 'horn_africa_gdelt_gsgembed_brz'
@@ -26,81 +16,57 @@ OUTPUT_TABLE_NAME = 'horn_africa_gdelt_gsgembed_2w_a1_100_slv'
 
 # COMMAND ----------
 
-# readin data
-evtslv = spark.sql(f"SELECT * FROM {DATABASE_NAME}.{EVTSLV_TABLE_NAME}")
+# readin embed data
 emb = spark.sql(f"SELECT * FROM {DATABASE_NAME}.{EMB_TABLE_NAME}")
-
-# some cleaning
-evtslv = evtslv.filter(evtslv['DATEADDED'] >= dt.date(2020, 1, 1))
 emb = emb.drop('DATEADDED')
 
 # COMMAND ----------
 
-# merge events and embeddings
-all_df = evtslv.join(emb, evtslv.SOURCEURL==emb.url, how='left')
-cols = ['DATEADDED', 'ADMIN1', 'COUNTRY'] + list(np.arange(512).astype(str))
-all_df = all_df.select(*cols)
-
-# COMMAND ----------
-
+# do one country at a time
 countries = ['SU', 'OD', 'ET', 'ER', 'DJ', 'SO', 'UG', 'KE']
 
 for CO in countries:
-    df = all_df.filter(all_df.COUNTRY == CO)
+    # read in events data 
+    evtslv = spark.sql(f"SELECT * FROM {DATABASE_NAME}.{EVTSLV_TABLE_NAME} WHERE COUNTRY=='{CO}'")
+    evtslv = evtslv.filter(evtslv['DATEADDED'] >= dt.date(2020, 1, 1))
+    # merge events and embeddings
+    co = evtslv.join(emb, evtslv.SOURCEURL==emb.url, how='left')
+    cols = ['DATEADDED', 'ADMIN1', 'COUNTRY'] + list(np.arange(512).astype(str))
+    co = co.select(*cols)
 
-    # get average embeddings by time intervals (2-week) and admin 1
-    m = df.groupBy(F.window(F.col("DATEADDED"), "2 week", "1 week", "-3 day"), 'ADMIN1').mean()
-    cols = ['DATE', 'ADMIN1'] + list(np.arange(512).astype(str))
-    m = m.toDF(*cols)
+    # groupby 2 week intervals
+    co = co.groupBy(F.window(F.col("DATEADDED"), "2 week", "1 week", "-3 day"), 'ADMIN1', 'COUNTRY').mean()
 
-    # cycle through admin 1s
-    admins = m.select('ADMIN1').distinct().rdd.flatMap(list).collect()
-    admins = [a for a in admins if a != CO]
+    # parce out start and end time
+    co = co.withColumn('STARTDATE', F.to_date(co['window']['start']))
+    co = co.withColumn('ENDDATE', F.to_date(co['window']['end']))
+    emb_cols = [f'avg({i})' for i in np.arange(512)]
+    cols = ['STARTDATE', 'ENDDATE', 'ADMIN1', 'COUNTRY'] + emb_cols
+    co = co.select(*cols)
 
-    # average admin 1 or take CO embedding if admin 1 is missing
-    collect_dfs = []
-    for admin in admins:
-        adm = m.filter(m.ADMIN1==admin)
-        adm = adm.groupby(F.col('DATE')).mean()
-        if adm.count() == 0:
-            adm = m.filter(m.ADMIN1==CO)
-            adm = adm.groupby(F.col('DATE')).mean()
-        cols = ['DATE'] + list(np.arange(512).astype(str))
-        adm = adm.toDF(*cols)
-        adm = adm.withColumn('ADMIN1', F.lit(admin))
-        collect_dfs.append(adm) 
+    # split CO and admin data
+    co_df = co.filter(co.ADMIN1==CO).select('STARTDATE', 'ENDDATE', 'ADMIN1', *emb_cols)
+    co_df = co_df.toDF(*[f'{c}_' for c in co_df.columns])
+    adm_df = co.filter(co.ADMIN1!=CO).select('STARTDATE', 'ADMIN1', *emb_cols)
+    # merge to create all combos of date and admin 1
+    co_df = co_df.withColumn('tmp_', F.lit(1))
+    adm = adm_df.select('ADMIN1').distinct()
+    adm = adm.withColumn('tmp', F.lit(1))
+    co_df = co_df.join(adm, co_df.tmp_==adm.tmp).drop('ADMIN1_', 'tmp_', 'tmp')
 
-    # collapse into one df and clean
-    df = functools.reduce(DataFrame.union, collect_dfs)
-    df = df.withColumn('STARTDATE', F.to_date(df['DATE']['start']))
-    df = df.withColumn('ENDDATE', F.to_date(df['DATE']['end']))
-    df = df.withColumn('COUNTRY', F.lit(CO))
-    cols = ['STARTDATE', 'ENDDATE', 'ADMIN1', 'COUNTRY'] + list(np.arange(512).astype(str))
-    df = df.select(*cols)
-    print(df.count())
-    df.write.mode('append').format('delta').saveAsTable("{}.{}".format(DATABASE_NAME, OUTPUT_TABLE_NAME))
+    # CO data and admin data together into wiiiide table
+    m = co_df.alias('c').join(adm_df.alias('a'), (F.col('c.STARTDATE_')==F.col('a.STARTDATE')) & (F.col('c.ADMIN1')==F.col('a.ADMIN1')), how='outer')
+    # if admin is missing, fill in with CO data
+    for col in emb_cols:
+        m = m.withColumn(col, F.coalesce(col, f"{col}_"))
+    #####
+    # if weighting CO and admin data, do it here
+    #####
+    
+    # cleaning
+    m = m.withColumn('COUNTRY', F.lit(CO))
+    m = m.select('STARTDATE_', 'ENDDATE_', 'c.ADMIN1', 'COUNTRY', *emb_cols)
+    m = m.toDF('STARTDATE', 'ENDDATE', 'ADMIN1', 'COUNTRY', *list(np.arange(512).astype(str)))
 
-# COMMAND ----------
-
-# ### go back and save in one dataframe to decrease the number of tables
-# from functools import reduce
-# from pyspark.sql import DataFrame
-# from pyspark.sql.functions import lit
-
-# countries = ['SU', 'OD', 'ET', 'ER', 'DJ', 'SO', 'UG', 'KE']
-
-# dfs = []
-# for co in countries:
-#     c = co.lower()
-#     cdf = spark.sql(f"SELECT * FROM news_media.horn_africa_gdelt_gsgembed_{c}_2w_slv")
-#     cdf = cdf.withColumn('COUNTRY', lit(co))
-#     dfs.append(cdf)
-
-# dfs = reduce(DataFrame.unionAll, dfs)
-# cols = ['STARTDATE', 'ENDDATE', 'ADMIN1', 'COUNTRY'] + list(np.arange(512).astype(str))
-# dfs = dfs.select(*cols)
-# dfs.write.mode('append').format('delta').saveAsTable(f'news_media.horn_africa_gdelt_gsgembed_2w_a1_5050_slv')
-
-# COMMAND ----------
-
-
+    # save
+    m.write.mode('append').format('delta').saveAsTable("{}.{}".format(DATABASE_NAME, OUTPUT_TABLE_NAME))
