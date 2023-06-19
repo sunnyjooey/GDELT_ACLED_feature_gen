@@ -9,7 +9,7 @@ from pyspark.sql import DataFrame
 # COMMAND ----------
 
 DATABASE_NAME = 'news_media'
-EVTSLV_TABLE_NAME = f'horn_africa_gdelt_events_a1_slv'
+EVTSLV_TABLE_NAME = 'horn_africa_gdelt_events_a1_slv'
 EMB_TABLE_NAME = 'horn_africa_gdelt_gsgembed_brz'
 # CHANGE ME!!
 OUTPUT_TABLE_NAME = 'horn_africa_gdelt_gsgembed_2w_a1_100_slv'

@@ -9,6 +9,17 @@
 import pandas as pd
 import numpy as np
 import datetime as dt
+from  itertools import product
+
+# COMMAND ----------
+
+DATABASE_NAME = 'news_media'
+DATA_TABLE = 'horn_africa_acled_outcome_fatal_escbin_1w_1010_slv'
+
+# COMMAND ----------
+
+MIN = dt.datetime(2019, 12, 23, 0, 0, 0)
+MAX = dt.datetime(2023, 4, 17, 0, 0, 0) 
 
 # COMMAND ----------
 
@@ -54,15 +65,15 @@ def get_data(df, admin_col, cnty_codes):
     # Create year-month column
     df['TimeFK_Event_Date'] = df['TimeFK_Event_Date'].apply(lambda x: dt.datetime.strptime(str(x), '%Y%m%d'))
 
-    # filter dates after dec 30, 2019
-    df = df[df['TimeFK_Event_Date'] >= dt.datetime(2019, 12, 30, 0, 0, 0)]
+    # filter dates after dec 23, 2019
+    df = df[df['TimeFK_Event_Date'] >= MIN]
 
     return df
 
 # COMMAND ----------
 
-cnty_codes = [214, 227, 108, 104, 97, 224, 235, 175]
-df = get_data(df_all,'ACLED_Admin1',cnty_codes) #get all horn of africa countries, Sudan:214, South Sudan:227, Ethiopia:108, Eritrea:104, Djibouti:97,Somalia:224,Uganda:235,Kenya:175
+cnty_codes = [214, 227, 108, 104, 97, 224, 235, 175] #get all horn of africa countries, Sudan:214, South Sudan:227, Ethiopia:108, Eritrea:104, Djibouti:97,Somalia:224,Uganda:235,Kenya:175
+df = get_data(df_all,'ACLED_Admin1',cnty_codes) 
 
 # COMMAND ----------
 
@@ -142,46 +153,46 @@ data['COUNTRY'] = data['COUNTRY'].map(country_keys)
 
 # COMMAND ----------
 
-# read in feature set for checking
-feat = spark.sql("SELECT * FROM news_media.horn_africa_acled_confhist_2w_gld")
-feat = feat.toPandas()
-# keep only one feature column to make checking easier
-feat = feat.iloc[:, :4]
-
-# COMMAND ----------
-
 # filter fatal data to match feature set's dates
-data = data.loc[data['STARTDATE'] <= feat['STARTDATE'].max()]
+data = data.loc[data['STARTDATE'] <= MAX]
 # change to string to make merge easier
 data['STARTDATE'] = data['STARTDATE'].astype(str)  
 
 # COMMAND ----------
 
-# merge feature set and fatal data
-m = pd.merge(feat, data, left_on=['STARTDATE','ADMIN1','COUNTRY'], right_on=['STARTDATE','ADMIN1','COUNTRY'], how='outer')
+# get all admin1 to make sure none are missing
+adm1 = spark.sql('SELECT * FROM news_media.horn_africa_gdelt_gsgembed_2w_a1_100_slv')
+adm1 = adm1.select('ADMIN1').distinct().rdd.map(lambda r: r[0]).collect()
+
+# Arta from DJ is no longer valid
+print([x for x in adm1 if x not in list(data['ADMIN1'].unique())])
+# 'Bahr el Ghazal' and 'Equatoria' are no longer valid
+print([x for x in list(data['ADMIN1'].unique()) if x not in adm1])
+
+# COMMAND ----------
+
+# merge into data
+d = pd.DataFrame(list(product(*[data.STARTDATE.unique(), adm1])), columns=['STARTDATE','ADMIN1'])
+data = pd.merge(d, data, how='left')
 
 # COMMAND ----------
 
 # check nans
-print(m.isnull().sum())
-m[pd.isnull(m).any(axis=1)]
+print(data.isnull().sum())
+data[pd.isnull(data).any(axis=1)]
 
 # COMMAND ----------
 
-# # these admin 1s are missing in the fata data because they had no events - fill with 0
-# m[m.FATALSUM.isnull()]['ADMIN1'].unique()
-m = m.fillna({'FATALSUM': 0})
-
-# COMMAND ----------
-
+# fill in 
+data.loc[data['ADMIN1']=='Rwampara', 'COUNTRY'] = 'UG' 
+# fill in missing with 0 (for Rwampapra, UG)
+data = data.fillna({'FATALSUM': 0})
 # # these are erroneous - drop from data
-# m[m.COUNTRY.isnull()]['ADMIN1'].unique()
-m = m.dropna()
+data = data.dropna(subset=['COUNTRY'])
 
 # COMMAND ----------
 
-# select only needed columns
-data = m.loc[:, ['STARTDATE', 'COUNTRY', 'ADMIN1', 'FATALSUM']].copy()
+print(data.isnull().sum())
 
 # COMMAND ----------
 
@@ -190,12 +201,8 @@ data = m.loc[:, ['STARTDATE', 'COUNTRY', 'ADMIN1', 'FATALSUM']].copy()
 
 # COMMAND ----------
 
-data
-
-# COMMAND ----------
-
 escalation_data = get_escalation_binary(data, 'FATALSUM', 'ADMIN1')
-escalation_data[escalation_data['binary_escalation']== 1]
+escalation_data = escalation_data.dropna() # this drops first time interval
 
 # COMMAND ----------
 
@@ -208,8 +215,7 @@ escalation_data[escalation_data['binary_escalation']== 1]
 spark.conf.set("spark.sql.execution.arrow.pyspark.enabled", "true")
 escalation_data = spark.createDataFrame(escalation_data)
 
-DATABASE_NAME = 'news_media'
-DATA_TABLE = 'horn_africa_acled_fatal_1w_10a10p_bin_gld'
+# COMMAND ----------
 
 # save in delta lake
 escalation_data.write.mode('append').format('delta').saveAsTable("{}.{}".format(DATABASE_NAME, DATA_TABLE))
