@@ -88,6 +88,7 @@ for CO in countries:
 
     # save
     m.write.mode('append').format('delta').saveAsTable("{}.{}".format(DATABASE_NAME, OUTPUT_TABLE_NAME))
+    print(CO, 'done')
 
 # COMMAND ----------
 
