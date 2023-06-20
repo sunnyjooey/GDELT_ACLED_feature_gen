@@ -14,7 +14,7 @@ from  itertools import product
 # COMMAND ----------
 
 DATABASE_NAME = 'news_media'
-DATA_TABLE = 'horn_africa_acled_outcome_fatal_escbin_1w_1010_slv'
+DATA_TABLE = 'horn_africa_acled_outcome_fatal_escbin_1w_pct_slv'
 
 # COMMAND ----------
 
@@ -113,13 +113,6 @@ def get_escalation_binary(data, fat_column,admin1_col):
     smoothing_factor = 1e-10
     data['pct_increase'] = (data['abs_change'] / (data.groupby(admin1_col)[fat_column].shift() + smoothing_factor)) * 100
 
-    # Create a new column for binary_escalation
-    data['binary_escalation'] = 0
-
-    # Apply thresholds for binary_escalation
-    data.loc[(data[fat_column] >= 100) & (data['pct_increase'] >= 10), 'binary_escalation'] = 1
-    data.loc[(data[fat_column] < 100) & (data['abs_change'] >= 10), 'binary_escalation'] = 1
-
     # Return the modified DataFrame
     return data
 
@@ -164,7 +157,6 @@ data['STARTDATE'] = data['STARTDATE'].astype(str)
 adm1 = spark.sql('SELECT * FROM news_media.horn_africa_gdelt_gsgembed_2w_a1_100_slv')
 adm1 = adm1.select('ADMIN1').distinct().rdd.map(lambda r: r[0]).collect()
 
-# Arta from DJ is no longer valid
 print([x for x in adm1 if x not in list(data['ADMIN1'].unique())])
 # 'Bahr el Ghazal' and 'Equatoria' are no longer valid
 print([x for x in list(data['ADMIN1'].unique()) if x not in adm1])
@@ -185,6 +177,7 @@ data[pd.isnull(data).any(axis=1)]
 
 # fill in 
 data.loc[data['ADMIN1']=='Rwampara', 'COUNTRY'] = 'UG' 
+data.loc[data['ADMIN1']=='Arta', 'COUNTRY'] = 'DJ' 
 # fill in missing with 0 (for Rwampapra, UG)
 data = data.fillna({'FATALSUM': 0})
 # # these are erroneous - drop from data
@@ -201,8 +194,78 @@ print(data.isnull().sum())
 
 # COMMAND ----------
 
-escalation_data = get_escalation_binary(data, 'FATALSUM', 'ADMIN1')
-escalation_data = escalation_data.dropna() # this drops first time interval
+data = get_escalation_binary(data, 'FATALSUM', 'ADMIN1')
+data = data.dropna() # this drops first time interval
+
+# COMMAND ----------
+
+# Create a new column for binary_escalation
+outcome = 'binary_escalation_30'
+data[outcome] = 0
+
+# Apply thresholds for binary_escalation
+data.loc[data['pct_increase'] >= 30, outcome] = 1
+print(data[data[outcome]==1].shape)
+
+# COMMAND ----------
+
+# Create a new column for binary_escalation
+outcome = 'binary_escalation_50'
+data[outcome] = 0
+
+# Apply thresholds for binary_escalation
+data.loc[data['pct_increase'] >= 50, outcome] = 1
+print(data[data[outcome]==1].shape)
+
+# COMMAND ----------
+
+# Create a new column for binary_escalation
+outcome = 'binary_escalation_100'
+data[outcome] = 0
+
+# Apply thresholds for binary_escalation
+data.loc[data['pct_increase'] >= 100, outcome] = 1
+print(data[data[outcome]==1].shape)
+
+# COMMAND ----------
+
+# Create a new column for binary_escalation
+outcome = 'binary_escalation_30'
+data[outcome] = 0
+
+# Apply thresholds for binary_escalation
+data.loc[data['pct_increase'] >= 30, outcome] = 1
+print(data[data[outcome]==1].shape)
+
+# COMMAND ----------
+
+# Create a new column for binary_escalation
+outcome = 'binary_escalation_5_30'
+data[outcome] = 0
+
+# Apply thresholds for binary_escalation
+data.loc[(data['abs_change'] >= 5) & (data['pct_increase'] >= 30), outcome] = 1
+print(data[data[outcome]==1].shape)
+
+# COMMAND ----------
+
+# Create a new column for binary_escalation
+outcome = 'binary_escalation_5_50'
+data[outcome] = 0
+
+# Apply thresholds for binary_escalation
+data.loc[(data['abs_change'] >= 5) & (data['pct_increase'] >= 50), outcome] = 1
+print(data[data[outcome]==1].shape)
+
+# COMMAND ----------
+
+# Create a new column for binary_escalation
+outcome = 'binary_escalation_5_100'
+data[outcome] = 0
+
+# Apply thresholds for binary_escalation
+data.loc[(data['abs_change'] >= 5) & (data['pct_increase'] >= 100), outcome] = 1
+print(data[data[outcome]==1].shape)
 
 # COMMAND ----------
 
@@ -213,9 +276,13 @@ escalation_data = escalation_data.dropna() # this drops first time interval
 
 # convert to spark dataframe
 spark.conf.set("spark.sql.execution.arrow.pyspark.enabled", "true")
-escalation_data = spark.createDataFrame(escalation_data)
+data = spark.createDataFrame(data)
 
 # COMMAND ----------
 
 # save in delta lake
-escalation_data.write.mode('append').format('delta').saveAsTable("{}.{}".format(DATABASE_NAME, DATA_TABLE))
+data.write.mode('append').format('delta').saveAsTable("{}.{}".format(DATABASE_NAME, DATA_TABLE))
+
+# COMMAND ----------
+
+
