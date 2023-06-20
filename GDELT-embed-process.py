@@ -5,6 +5,12 @@ import datetime as dt
 import functools
 import pyspark.sql.functions as F
 from pyspark.sql import DataFrame
+from pyspark.sql.types import DoubleType
+
+# COMMAND ----------
+
+# weight of admin1 data
+adm_pct = 0.8
 
 # COMMAND ----------
 
@@ -12,7 +18,7 @@ DATABASE_NAME = 'news_media'
 EVTSLV_TABLE_NAME = 'horn_africa_gdelt_events_a1_slv'
 EMB_TABLE_NAME = 'horn_africa_gdelt_gsgembed_brz'
 # CHANGE ME!!
-OUTPUT_TABLE_NAME = 'horn_africa_gdelt_gsgembed_2w_a1_100_slv'
+OUTPUT_TABLE_NAME = 'horn_africa_gdelt_gsgembed_2w_a1_8020_slv'
 
 # COMMAND ----------
 
@@ -59,9 +65,21 @@ for CO in countries:
     # if admin is missing, fill in with CO data
     for col in emb_cols:
         m = m.withColumn(col, F.coalesce(col, f"{col}_"))
-    #####
-    # if weighting CO and admin data, do it here
-    #####
+    
+    # weighted average between admin and CO data
+    if adm_pct is not None:
+        co_pct = 1 - adm_pct
+        # cycle through admin data cols
+        for col in emb_cols:
+            # CO data col
+            co_col = f'{col}_'
+            # calculate weighted average
+            udfco = F.udf(lambda co: co * co_pct, DoubleType())
+            m = m.withColumn(co_col, udfco(m[co_col]))
+            udfadm = F.udf(lambda adm: adm * adm_pct, DoubleType())
+            m = m.withColumn(col, udfadm(m[col]))
+            udffin = F.udf(lambda co, adm: co + adm, DoubleType())
+            m = m.withColumn(col, udffin(m[co_col], m[col]))
     
     # cleaning
     m = m.withColumn('COUNTRY', F.lit(CO))
@@ -70,3 +88,7 @@ for CO in countries:
 
     # save
     m.write.mode('append').format('delta').saveAsTable("{}.{}".format(DATABASE_NAME, OUTPUT_TABLE_NAME))
+
+# COMMAND ----------
+
+
