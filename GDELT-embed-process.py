@@ -11,6 +11,8 @@ from pyspark.sql.types import DoubleType
 
 # weight of admin1 data
 adm_pct = 0.8
+# period of time for averaging 
+n_week = "1 week"
 
 # COMMAND ----------
 
@@ -18,7 +20,7 @@ DATABASE_NAME = 'news_media'
 EVTSLV_TABLE_NAME = 'horn_africa_gdelt_events_a1_slv'
 EMB_TABLE_NAME = 'horn_africa_gdelt_gsgembed_brz'
 # CHANGE ME!!
-OUTPUT_TABLE_NAME = 'horn_africa_gdelt_gsgembed_2w_a1_8020_slv'
+OUTPUT_TABLE_NAME = 'horn_africa_gdelt_gsgembed_1w_a1_8020_slv'
 
 # COMMAND ----------
 
@@ -40,8 +42,8 @@ for CO in countries:
     cols = ['DATEADDED', 'ADMIN1', 'COUNTRY'] + list(np.arange(512).astype(str))
     co = co.select(*cols)
 
-    # groupby 2 week intervals
-    co = co.groupBy(F.window(F.col("DATEADDED"), "2 week", "1 week", "-3 day"), 'ADMIN1', 'COUNTRY').mean()
+    # groupby n week intervals
+    co = co.groupBy(F.window(F.col("DATEADDED"), n_week, "1 week", "-3 day"), 'ADMIN1', 'COUNTRY').mean()
 
     # parce out start and end time
     co = co.withColumn('STARTDATE', F.to_date(co['window']['start']))
