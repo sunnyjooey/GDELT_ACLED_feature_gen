@@ -9,10 +9,10 @@ from pyspark.sql.functions import date_format, col
 
 DATABASE_NAME = 'news_media'
 # CHANGE ME!!
-EMB_TABLE_NAME = 'horn_africa_gdelt_gsgembed_1w_a1_8020_lag4_slv'
+EMB_TABLE_NAME = 'horn_africa_gdelt_gsgembed_1w_a1_8020_lag4_pca_120_per_t_slv'
 ACLED_TABLE_NAME = 'horn_africa_acled_sumfat_1w_slv'
 OUTCOME_TABLE_NAME = 'horn_africa_acled_outcome_fatal_escbin_1w_pct_slv'
-MODEL_TABLE_NAME = 'horn_africa_model_escbin_emb_confhist_lag_m4_gld'
+MODEL_TABLE_NAME = 'horn_africa_model_escbin_emb_confhist_lagpca_m50_gld'
 
 # COMMAND ----------
 
@@ -53,6 +53,7 @@ display(m1)
 # COMMAND ----------
 
 m2 = m1.join(out, (m1.STARTDATE==out.STARTDATE) & (m1.ADMIN1==out.ADMIN1)).drop(out.STARTDATE).drop(out.ADMIN1).drop(out.COUNTRY)
+m2 = m2.orderBy('STARTDATE')
 
 # COMMAND ----------
 
