@@ -14,7 +14,7 @@ from  itertools import product
 # COMMAND ----------
 
 DATABASE_NAME = 'news_media'
-DATA_TABLE = 'horn_africa_acled_outcome_fatal_escbin_1w_pct_slv'
+DATA_TABLE = 'horn_africa_acled_outcome_fatal_escbin_1w_pct_v2_slv'
 
 # COMMAND ----------
 
@@ -150,37 +150,52 @@ data['COUNTRY'] = data['COUNTRY'].map(country_keys)
 data = data.loc[data['STARTDATE'] <= MAX]
 # change to string to make merge easier
 data['STARTDATE'] = data['STARTDATE'].astype(str)  
+data[data['COUNTRY'].isnull()]
 
 # COMMAND ----------
 
-# get all admin1 to make sure none are missing
+# get all admin1, country from feature dataset to make sure none are missing
 adm1 = spark.sql('SELECT * FROM news_media.horn_africa_gdelt_gsgembed_2w_a1_100_slv')
-adm1 = adm1.select('ADMIN1').distinct().rdd.map(lambda r: r[0]).collect()
+adm1 = adm1.select('ADMIN1', 'COUNTRY').distinct().rdd.map(lambda r: (r[0], r[1])).collect()
+# acled data
+data.loc[data['ADMIN1']=='Rwampara', 'COUNTRY'] = 'UG' # fill in missing CO info
+data['set'] = data.apply(lambda row: (row['ADMIN1'], row['COUNTRY']), axis=1)
+print(len(adm1))
 
-print([x for x in adm1 if x not in list(data['ADMIN1'].unique())])
-# 'Bahr el Ghazal' and 'Equatoria' are no longer valid
-print([x for x in list(data['ADMIN1'].unique()) if x not in adm1])
+# in embedding data but not in acled data
+print([x for x in adm1 if x not in list(data['set'].unique())])
+# in acled data but not in embedding data
+# Note: 'Bahr el Ghazal' and 'Equatoria' are no longer valid
+print([x for x in list(data['set'].unique()) if x not in adm1])
 
 # COMMAND ----------
 
-# merge into data
-d = pd.DataFrame(list(product(*[data.STARTDATE.unique(), adm1])), columns=['STARTDATE','ADMIN1'])
+# add in admin1s missing from acled 
+adm1.extend([x for x in adm1 if x not in list(data['set'].unique())])
+print(len(adm1))
+
+# COMMAND ----------
+
+# make sure each admin1 has all the time intervals
+d = pd.DataFrame(list(product(*[data.STARTDATE.unique(), adm1])), columns=['STARTDATE','ADMIN1_CO'])
+d['ADMIN1'] = d.apply(lambda row: row['ADMIN1_CO'][0], axis=1)
+d['COUNTRY'] = d.apply(lambda row: row['ADMIN1_CO'][1], axis=1)
+d.drop('ADMIN1_CO', axis=1, inplace=True)
+
+data.drop('set', axis=1, inplace=True)
 data = pd.merge(d, data, how='left')
 
 # COMMAND ----------
 
 # check nans
 print(data.isnull().sum())
-data[pd.isnull(data).any(axis=1)]
+data[pd.isnull(data).any(axis=1)].drop_duplicates(['ADMIN1','COUNTRY'])
 
 # COMMAND ----------
 
-# fill in 
-data.loc[data['ADMIN1']=='Rwampara', 'COUNTRY'] = 'UG' 
-data.loc[data['ADMIN1']=='Arta', 'COUNTRY'] = 'DJ' 
-# fill in missing with 0 (for Rwampapra, UG)
+# fill in missing fatalsum with 0 - these are places with no acled fatalities
 data = data.fillna({'FATALSUM': 0})
-# # these are erroneous - drop from data
+# these are erroneous - drop from data
 data = data.dropna(subset=['COUNTRY'])
 
 # COMMAND ----------

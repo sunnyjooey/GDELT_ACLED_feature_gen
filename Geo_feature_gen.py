@@ -221,8 +221,6 @@ def merge_geo(shapefile_path, raster_path):
 
 # COMMAND ----------
 
-df = pd.DataFrame()
-
 co_dict = {
     'djibouti':'DJ', 
     'eritrea':'ER', 
@@ -234,6 +232,19 @@ co_dict = {
     'uganda':'UG'
 }
 
+adm_dict = {
+    'Aj Jazirah':'Al Jazirah',
+    'Abyei PCA':'Abyei',
+    'Djiboutii':'Djibouti',
+    'Benishangul Gumz':'Benshangul/Gumuz',
+    "Murang'a":'Muranga',
+    'Tadjoura':'Tadjourah',
+    'South West Ethiopia':'South West',
+    'Elgeyo-Marakwet':'Elgeyo Marakwet'
+}
+
+df = pd.DataFrame()
+
 for country, files in country_file.items():
     shapefile_path, raster_path = files
     gdf = merge_geo(shapefile_path, raster_path)
@@ -244,13 +255,10 @@ for country, files in country_file.items():
     df = pd.concat([df, gdf_stats], axis=0)
 
 df['ADMIN1'] =  df.apply(lambda row: row['ADM1_EN'] if row['ADM2_EN']==None else row['ADM2_EN'], axis=1)
+df['ADMIN1'] = df.apply(lambda row: adm_dict[row['ADMIN1']] if row['ADMIN1'] in adm_dict else row['ADMIN1'], axis=1)
 df.rename(columns={'mean': 'mean_pop_dense_2020'}, inplace=True)
 df.reset_index(drop=True, inplace=True)
 df.drop(['ADM1_EN','ADM2_EN'], axis=1, inplace=True)
-
-# COMMAND ----------
-
-df
 
 # COMMAND ----------
 
