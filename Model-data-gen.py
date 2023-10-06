@@ -11,9 +11,9 @@ from functools import reduce
 DATABASE_NAME = 'news_media'
 
 # CHANGE ME!!
-MODEL_TABLE_NAME = 'horn_africa_model_escbin_emb_confhist_lagpca_m51_gld'
+MODEL_TABLE_NAME = 'horn_africa_model_escbin_emb_confhist_lag_m41_gld'
 
-EMB_TABLE_NAME = 'horn_africa_gdelt_gsgembed_1w_a1_8020_lag4_pca_120_per_t_slv'
+EMB_TABLE_NAME = 'horn_africa_gdelt_gsgembed_1w_a1_8020_lag4_slv'
 ACLED_TABLE_NAME = 'horn_africa_acled_sumfat_1w_slv'
 GEO_STATIC_TABLE_NAME = 'horn_africa_geo_popdens2020_static_slv'
 TREND_STATIC_TABLE_NAME = 'horn_africa_acled_conftrend_static_ct1_slv'
