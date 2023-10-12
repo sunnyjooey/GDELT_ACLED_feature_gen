@@ -65,11 +65,15 @@ w = w.drop(['trend_cat1'], axis=1)
 
 # COMMAND ----------
 
+# import random
 # %matplotlib inline
 
-# def graph_it(long_df, wide_df, filter_col):
+# def graph_it(long_df, wide_df, filter_col, sample=None):
 #     cdf = pd.merge(long_df, wide_df.loc[:, filter_col], on='ADMIN1', how='left')
 #     cdf = cdf[cdf[filter_col] == 1]
+#     if sample != None:
+#         adm1s = random.sample(list(cdf.ADMIN1.unique()), sample)
+#         cdf = cdf[cdf.ADMIN1.isin(adm1s)]
     
 #     # Plotting the fatalities over time by country
 #     for adm1 in cdf.ADMIN1.unique():
@@ -86,6 +90,14 @@ w = w.drop(['trend_cat1'], axis=1)
 #         plt.show()
 
 # graph_it(escalation_data, w, 'conflict_trend_1')
+
+# COMMAND ----------
+
+# graph_it(escalation_data, w, 'conflict_trend_2')
+
+# COMMAND ----------
+
+# graph_it(escalation_data, w, 'conflict_trend_3', 20)
 
 # COMMAND ----------
 
