@@ -88,7 +88,8 @@ for CO in countries:
     m_fill = m.withColumn("TITLE", F.coalesce(m.TITLE, m.TITLE_)) 
 
     # 2. fill with CO-wide titles if no titles for admin, otherwise concat admin titles and CO-wide titles
-    concat_txt_udf = udf(lambda t_, t: t_ if t is None else t + ' [SEP] ' + t_, StringType())
+    m = m.fillna('', subset=['TITLE_', 'TITLE'])
+    concat_txt_udf = udf(lambda t_, t: t_ if t=='' else t + ' [SEP] ' + t_, StringType())
     m = m.withColumn('TITLE', concat_txt_udf(m.TITLE_, m.TITLE))
 
     # cleaning
@@ -104,3 +105,7 @@ for CO in countries:
     m_fill.write.mode('append').format('delta').saveAsTable("{}.{}".format(DATABASE_NAME, OUTPUT_TABLE_NAME_FILL))
     m.write.mode('append').format('delta').saveAsTable("{}.{}".format(DATABASE_NAME, OUTPUT_TABLE_NAME_CONCAT))
     print(CO, 'done')
+
+# COMMAND ----------
+
+
