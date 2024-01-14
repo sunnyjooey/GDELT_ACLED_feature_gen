@@ -9,23 +9,42 @@ from pyspark.sql.types import StringType
 
 # COMMAND ----------
 
+# IMPORTANT - rollups are from Monday - Sunday
+# for best results, start_date and end_date should both be a Monday (weekday = 0)
+start_date = '2019-12-30'  # inclusive
+end_date = '2023-05-01'  # exclusive: download does not include this day 
+
+# COMMAND ----------
+
 # period of time for averaging 
 n_week = "1 week"
 
 # COMMAND ----------
 
 DATABASE_NAME = 'news_media'
-EVTSLV_TABLE_NAME = 'horn_africa_gdelt_events_a1_slv'
+EVTSLV_TABLE_NAME = 'horn_africa_gdelt_events_cameo1_slv'
 EMB_TABLE_NAME = 'horn_africa_gdelt_gsgembed_brz'
 # CHANGE ME!!
-OUTPUT_TABLE_NAME_FILL = 'horn_africa_gdelt_gsgemb_title_fill_1w_slv'
-OUTPUT_TABLE_NAME_CONCAT = 'horn_africa_gdelt_gsgemb_title_concat_1w_slv'
+OUTPUT_TABLE_NAME_FILL = 'horn_africa_gdelt_cameo1_gsgemb_title_fill_1w_slv'
+OUTPUT_TABLE_NAME_CONCAT = 'horn_africa_gdelt_cameo1_gsgemb_title_concat_1w_slv'
 
 # COMMAND ----------
 
 # readin embed data
 emb = spark.sql(f"SELECT * FROM {DATABASE_NAME}.{EMB_TABLE_NAME}")
+print(emb.count())
+# there are many duplicates in the embeddings data - keep only the first occurrence by url
+emb = emb.orderBy('DATEADDED').coalesce(1).dropDuplicates(subset = ['url'])
+print(emb.count())
+
+# COMMAND ----------
+
+# filter to date range needed
+emb = emb.withColumn('DATEADDED', F.to_timestamp('DATEADDED', format='yyyyMMddHHmmss'))
+emb = emb.withColumn('DATEADDED', F.to_date('DATEADDED'))
+emb = emb.filter((emb['DATEADDED'] >= dt.datetime.strptime(start_date, '%Y-%m-%d').date()) & (emb['DATEADDED'] < dt.datetime.strptime(end_date, '%Y-%m-%d').date()))
 emb = emb.drop('DATEADDED')
+print(emb.count())
 
 # COMMAND ----------
 
@@ -33,9 +52,9 @@ emb = emb.drop('DATEADDED')
 countries = ['SU', 'OD', 'ET', 'ER', 'DJ', 'SO', 'UG', 'KE']
 
 for CO in countries:
-    # read in events data 
+    # read in events data and filter to date range
     evtslv = spark.sql(f"SELECT * FROM {DATABASE_NAME}.{EVTSLV_TABLE_NAME} WHERE COUNTRY=='{CO}'")
-    evtslv = evtslv.filter(evtslv['DATEADDED'] >= dt.date(2020, 1, 1))
+    evtslv = evtslv.filter((evtslv['DATEADDED'] >= dt.datetime.strptime(start_date, '%Y-%m-%d').date()) & (evtslv['DATEADDED'] < dt.datetime.strptime(end_date, '%Y-%m-%d').date()))
     # merge events and embeddings
     co = evtslv.join(emb, evtslv.SOURCEURL==emb.url, how='left')
     cols = ['DATEADDED', 'ADMIN1', 'COUNTRY', 'title'] 

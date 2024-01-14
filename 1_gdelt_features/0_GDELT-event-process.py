@@ -19,22 +19,28 @@ import pandas as pd
 import numpy as np
 from datetime import datetime
 
-from pyspark.sql.functions import coalesce, to_timestamp, to_date
+from pyspark.sql.functions import coalesce, to_timestamp, to_date, lit
 from pyspark.sql.types import FloatType
 
 # COMMAND ----------
 
-CO = 'DJ'
-start_date = '2020-02-01'  # inclusive
+# country code
+CO = 'UG'
+
+# dates to filter
+start_date = '2020-01-01'  # inclusive
 end_date = '2023-05-01'  # exclusive: download does not include this day 
-CAMEO_LST = ['14','15','17','18','19']  # cameo codes to filter in
+
+# cameo codes to filter in
+# if no filter, set CAMEO_LST to None
+CAMEO_LST = ['11','14','15','17','18','19','20']  
 
 # COMMAND ----------
 
 # database and table
 DATABASE_NAME = 'news_media'
 INPUT_TABLE_NAME = 'horn_africa_gdelt_events_brz'
-OUTPUT_TABLE_NAME = f'horn_africa_gdelt_events_a1_slv'
+OUTPUT_TABLE_NAME = 'horn_africa_gdelt_events_cameo1_slv'
 
 # COMMAND ----------
 
@@ -213,6 +219,7 @@ print(adm_df.count())
 
 # some processing
 co_df = co_df.drop(*['LAT','LON','GEO_NAME'])
+co_df = co_df.withColumn('COUNTRY', lit(CO))
 adm_df = adm_df.withColumn('LON', adm_df['LON'].cast(FloatType()))
 adm_df = adm_df.withColumn('LAT', adm_df['LAT'].cast(FloatType()))
 
@@ -334,6 +341,9 @@ adm_gdf[ADM].fillna(CO, inplace=True)
 # processing
 adm_gdf = adm_gdf[['DATEADDED','SOURCEURL', ADM]]
 adm_gdf.columns = ['DATEADDED','SOURCEURL','ADMIN1']
+adm_gdf = pd.concat([adm_gdf, pd.Series([CO for x in np.arange(adm_df.shape[0])], name='COUNTRY')], axis=1)  # add country column
+
+# COMMAND ----------
 
 # convert back to spark
 spark.conf.set("spark.sql.execution.arrow.pyspark.enabled", "true")
@@ -349,7 +359,3 @@ long_df.count()
 
 # save
 long_df.write.mode('append').format('delta').saveAsTable("{}.{}".format(DATABASE_NAME, OUTPUT_TABLE_NAME))
-
-# COMMAND ----------
-
-
