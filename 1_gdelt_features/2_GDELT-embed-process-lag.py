@@ -4,8 +4,17 @@
 
 # COMMAND ----------
 
+import datetime as dt
+
 from pyspark.sql import functions as F
 from pyspark.sql import Window
+
+# COMMAND ----------
+
+# the datasets used for this notebook should already be rolled up into (1 week) intervals
+# these dates are for filtering only, suggested to keep it the same as the download notebooks
+start_date = '2019-12-30'  # inclusive
+end_date = '2020-01-20'  # exclusive
 
 # COMMAND ----------
 
@@ -16,10 +25,15 @@ OUTPUT_TABLE_NAME = 'horn_africa_gdelt_gsgembed_1w_a1_8020_lag4_gld'
 
 # COMMAND ----------
 
+# filter to date range needed
 df = spark.sql(f"SELECT * FROM {DATABASE_NAME}.{INPUT_TABLE_NAME}")
+print(df.count())
+df = df.filter((df['STARTDATE'] >= dt.datetime.strptime(start_date, '%Y-%m-%d').date()) & (df['ENDDATE'] < dt.datetime.strptime(end_date, '%Y-%m-%d').date()))
+print(df.count())
 
 # COMMAND ----------
 
+# number of lags to create
 num_lags = 4
 cols = [str(x) for x in range(512)]
 
@@ -37,11 +51,8 @@ for offset in range(1, num_lags+1):
     all_lags = all_lags.alias('a').join(df_lag.alias('d'), (F.col('a.STARTDATE')==F.col('d.STARTDATE')) & (F.col('a.ADMIN1')==F.col('d.ADMIN1')) & (F.col('a.COUNTRY')==F.col('d.COUNTRY')), how='left')
     all_lags = all_lags.select('a.STARTDATE', 'a.ENDDATE', 'a.ADMIN1', 'a.COUNTRY', *keep_cols)
 
+# this drops cases without enough lags
 all_lags = all_lags.na.drop()
-
-# COMMAND ----------
-
-display(all_lags)
 
 # COMMAND ----------
 
