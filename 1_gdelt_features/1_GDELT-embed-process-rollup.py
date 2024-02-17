@@ -10,30 +10,26 @@ from pyspark.sql.types import DoubleType
 
 # COMMAND ----------
 
-# IMPORTANT - rollups are from Monday - Sunday
-# for best results, start_date and end_date should both be a Monday (weekday = 0)
-start_date = '2019-12-30'  # inclusive
-end_date = '2023-05-01'  # exclusive: download does not include this day 
+# import variables
+import sys
+sys.path.append('../util')
+
+from db_table import START_DATE, END_DATE, DATABASE_NAME, GDELT_EMBED_TABLE, GDELT_EMBED_PROCESS_TABLE, GDELT_EVENT_PROCESS_TABLE, N_WEEK, COUNTRY_CODES
 
 # COMMAND ----------
 
 # weight of admin1 data, weight of CO (national) data is 1 - adm_pct
 adm_pct = 0.8
 # period of time for averaging 
-n_week = "1 week"
+n_week = f"{N_WEEK} week"
 
-# COMMAND ----------
-
-DATABASE_NAME = 'news_media'
-EVTSLV_TABLE_NAME = 'horn_africa_gdelt_events_a1_slv'
-EMB_TABLE_NAME = 'horn_africa_gdelt_gsgembed_brz'
-# CHANGE ME!!
-OUTPUT_TABLE_NAME = 'horn_africa_gdelt_gsgembed_1w_a1_8020_slv'
+# IMPORTANT - rollups are from Monday - Sunday
+# for best results, START_DATE and END_DATE should both be a Monday (weekday = 0)
 
 # COMMAND ----------
 
 # readin embed data
-emb = spark.sql(f"SELECT * FROM {DATABASE_NAME}.{EMB_TABLE_NAME}")
+emb = spark.sql(f"SELECT * FROM {DATABASE_NAME}.{GDELT_EMBED_TABLE}")
 print(emb.count())
 # there are many duplicates in the embeddings data - keep only the first occurrence by url
 emb = emb.orderBy('DATEADDED').coalesce(1).dropDuplicates(subset = ['url'])
@@ -44,19 +40,17 @@ print(emb.count())
 # filter to date range needed
 emb = emb.withColumn('DATEADDED', F.to_timestamp('DATEADDED', format='yyyyMMddHHmmss'))
 emb = emb.withColumn('DATEADDED', F.to_date('DATEADDED'))
-emb = emb.filter((emb['DATEADDED'] >= dt.datetime.strptime(start_date, '%Y-%m-%d').date()) & (emb['DATEADDED'] < dt.datetime.strptime(end_date, '%Y-%m-%d').date()))
+emb = emb.filter((emb['DATEADDED'] >= dt.datetime.strptime(START_DATE, '%Y-%m-%d').date()) & (emb['DATEADDED'] < dt.datetime.strptime(END_DATE, '%Y-%m-%d').date()))
 emb = emb.drop('DATEADDED')
 print(emb.count())
 
 # COMMAND ----------
 
 # do one country at a time
-countries = ['SU', 'OD', 'ET', 'ER', 'DJ', 'SO', 'UG', 'KE']
-
-for CO in countries:
+for CO in COUNTRY_CODES:
     # read in events data 
-    evtslv = spark.sql(f"SELECT * FROM {DATABASE_NAME}.{EVTSLV_TABLE_NAME} WHERE COUNTRY=='{CO}'")
-    evtslv = evtslv.filter((evtslv['DATEADDED'] >= dt.datetime.strptime(start_date, '%Y-%m-%d').date()) & (evtslv['DATEADDED'] < dt.datetime.strptime(end_date, '%Y-%m-%d').date()))
+    evtslv = spark.sql(f"SELECT * FROM {DATABASE_NAME}.{GDELT_EVENT_PROCESS_TABLE} WHERE COUNTRY=='{CO}'")
+    evtslv = evtslv.filter((evtslv['DATEADDED'] >= dt.datetime.strptime(START_DATE, '%Y-%m-%d').date()) & (evtslv['DATEADDED'] < dt.datetime.strptime(END_DATE, '%Y-%m-%d').date()))
     # merge events and embeddings
     co = evtslv.join(emb, evtslv.SOURCEURL==emb.url, how='left')
     cols = ['DATEADDED', 'ADMIN1', 'COUNTRY'] + list(np.arange(512).astype(str))
@@ -109,7 +103,7 @@ for CO in countries:
     m = m.toDF('STARTDATE', 'ENDDATE', 'ADMIN1', 'COUNTRY', *list(np.arange(512).astype(str)))
 
     # save
-    m.write.mode('append').format('delta').saveAsTable("{}.{}".format(DATABASE_NAME, OUTPUT_TABLE_NAME))
+    m.write.mode('append').format('delta').saveAsTable("{}.{}".format(DATABASE_NAME, GDELT_EMBED_PROCESS_TABLE))
     print(CO, 'done')
 
 # COMMAND ----------

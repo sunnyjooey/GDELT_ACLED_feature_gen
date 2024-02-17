@@ -11,37 +11,27 @@ from pyspark.sql import Window
 
 # COMMAND ----------
 
-# the datasets used for this notebook should already be rolled up into (1 week) intervals
-# these dates are for filtering only, suggested to keep it the same as the download notebooks
-start_date = '2019-12-30'  # inclusive
-end_date = '2020-01-20'  # exclusive
+# import variables
+import sys
+sys.path.append('../util')
 
-# COMMAND ----------
-
-DATABASE_NAME = 'news_media'
-# CHANGE ME!!
-INPUT_TABLE_NAME = 'horn_africa_gdelt_gsgembed_1w_a1_8020_slv'
-OUTPUT_TABLE_NAME = 'horn_africa_gdelt_gsgembed_1w_a1_8020_lag4_gld'
+from db_table import START_DATE, END_DATE, DATABASE_NAME, GDELT_EMBED_PROCESS_TABLE, GDELT_EMBED_PROCESS_LAG_TABLE, N_LAGS
 
 # COMMAND ----------
 
 # filter to date range needed
-df = spark.sql(f"SELECT * FROM {DATABASE_NAME}.{INPUT_TABLE_NAME}")
+df = spark.sql(f"SELECT * FROM {DATABASE_NAME}.{GDELT_EMBED_PROCESS_TABLE}")
 print(df.count())
-df = df.filter((df['STARTDATE'] >= dt.datetime.strptime(start_date, '%Y-%m-%d').date()) & (df['ENDDATE'] < dt.datetime.strptime(end_date, '%Y-%m-%d').date()))
+df = df.filter((df['STARTDATE'] >= dt.datetime.strptime(START_DATE, '%Y-%m-%d').date()) & (df['ENDDATE'] < dt.datetime.strptime(END_DATE, '%Y-%m-%d').date()))
 print(df.count())
 
 # COMMAND ----------
 
-# number of lags to create
-num_lags = 4
 cols = [str(x) for x in range(512)]
-
-# COMMAND ----------
-
 all_lags = df.select("STARTDATE", "ENDDATE", "ADMIN1", "COUNTRY")
+
 keep_cols = []
-for offset in range(1, num_lags+1):
+for offset in range(1, N_LAGS+1):
     window = Window.partitionBy(F.col("COUNTRY"), F.col("ADMIN1")).orderBy(F.col("STARTDATE"))
     keep_cols.extend([f"{c}_t-{offset}" for c in cols])
     df_lag = df.select(
@@ -56,7 +46,7 @@ all_lags = all_lags.na.drop()
 
 # COMMAND ----------
 
-all_lags.write.mode('append').format('delta').saveAsTable(f"{DATABASE_NAME}.{OUTPUT_TABLE_NAME}")
+all_lags.write.mode('append').format('delta').saveAsTable(f"{DATABASE_NAME}.{GDELT_EMBED_PROCESS_LAG_TABLE}")
 
 # COMMAND ----------
 

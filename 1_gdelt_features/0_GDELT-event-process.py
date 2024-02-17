@@ -1,6 +1,6 @@
 # Databricks notebook source
 # MAGIC %md
-# MAGIC This notebook cleans the Events dataset.  
+# MAGIC This notebook cleans the GDELT Events dataset.  
 # MAGIC 1. It harmonizes admin 1 names with those in ACLED.  
 # MAGIC 2. It filters event types (cameo codes).  
 # MAGIC 3. It stacks the Events dataset.  
@@ -24,23 +24,22 @@ from pyspark.sql.types import FloatType
 
 # COMMAND ----------
 
-# country code
-CO = 'UG'
+# import variables
+import sys
+sys.path.append('../util')
 
-# dates to filter
-start_date = '2020-01-01'  # inclusive
-end_date = '2023-05-01'  # exclusive: download does not include this day 
-
-# cameo codes to filter in
-# if no filter, set CAMEO_LST to None
-CAMEO_LST = ['11','14','15','17','18','19','20']  
+from db_table import START_DATE, END_DATE, DATABASE_NAME, GDELT_EVENT_TABLE, GDELT_EVENT_PROCESS_TABLE, CAMEO_LST
 
 # COMMAND ----------
 
-# database and table
-DATABASE_NAME = 'news_media'
-INPUT_TABLE_NAME = 'horn_africa_gdelt_events_brz'
-OUTPUT_TABLE_NAME = 'horn_africa_gdelt_events_cameo1_slv'
+# country code 
+# run one at a time to check all admin names are correct
+CO = 'UG'
+
+# # run as a job
+# spark = SparkSession.builder.getOrCreate()
+# dbutils = DBUtils(spark)
+# CO = dbutils.widgets.get("CO")
 
 # COMMAND ----------
 
@@ -146,10 +145,10 @@ elif CO == 'ET':
 # COMMAND ----------
 
 # events data - filtered to date
-events = spark.sql(f"SELECT * FROM {DATABASE_NAME}.{INPUT_TABLE_NAME}")
+events = spark.sql(f"SELECT * FROM {DATABASE_NAME}.{GDELT_EVENT_TABLE}")
 events = events.withColumn('DATEADDED', to_timestamp('DATEADDED', format='yyyyMMddHHmmss'))
 events = events.withColumn('DATEADDED', to_date('DATEADDED'))
-events = events.filter((events['DATEADDED'] >= datetime.strptime(start_date, '%Y-%m-%d').date()) & (events['DATEADDED'] < datetime.strptime(end_date, '%Y-%m-%d').date()))
+events = events.filter((events['DATEADDED'] >= datetime.strptime(START_DATE, '%Y-%m-%d').date()) & (events['DATEADDED'] < datetime.strptime(END_DATE, '%Y-%m-%d').date()))
 
 # filter by actors and location
 events = events.filter((events.ActionGeo_CountryCode==CO) | (events.Actor1Geo_CountryCode==CO) | (events.Actor2Geo_CountryCode==CO))
@@ -358,4 +357,4 @@ long_df.count()
 # COMMAND ----------
 
 # save
-long_df.write.mode('append').format('delta').saveAsTable("{}.{}".format(DATABASE_NAME, OUTPUT_TABLE_NAME))
+long_df.write.mode('append').format('delta').saveAsTable("{}.{}".format(DATABASE_NAME, GDELT_EVENT_PROCESS_TABLE))

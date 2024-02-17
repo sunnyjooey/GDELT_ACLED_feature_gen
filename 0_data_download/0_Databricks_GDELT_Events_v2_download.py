@@ -1,6 +1,6 @@
 # Databricks notebook source
 # MAGIC %md
-# MAGIC This notebook downloads the GDELT Events (v2) datasets. Change `start_date`, `end_date`, and `country_codes`.
+# MAGIC This notebook downloads the GDELT Events (v2) datasets.
 
 # COMMAND ----------
 
@@ -22,14 +22,11 @@ from pyspark.sql.types import StructType, StructField, StringType
 
 # COMMAND ----------
 
-# Input Params
+# import variables
+import sys
+sys.path.append('../util')
 
-start_date = '2023-01-01'  # inclusive
-end_date = '2023-05-01'  # exclusive: download does not include this day 
-country_codes = ['SU', 'OD', 'ET', 'ER', 'DJ', 'SO', 'UG', 'KE']  # list of countries to keep
-DATABASE_NAME = 'news_media'
-TABLE_NAME = 'horn_africa_gdelt_events_brz'
-ERROR_TABLE_NAME = 'horn_africa_errors'
+from db_table import START_DATE, END_DATE, DATABASE_NAME, GDELT_EVENT_TABLE, GDELT_ERROR_TABLE, COUNTRY_CODES 
 
 # COMMAND ----------
 
@@ -42,7 +39,7 @@ def get_date_time_intervals(_start_date, _end_date):
     return _date_time_range
 
 # get dates
-date_range = get_date_time_intervals(start_date, end_date)
+date_range = get_date_time_intervals(START_DATE, END_DATE)
 
 # exclude last time frame published at midnight for last 15 min from day before
 date_range = date_range[:-1]
@@ -95,9 +92,9 @@ for batch in range(num_batches_date):
     print('ALL GDELT 2.0 events in batch:', _gdelt_data_batch.shape)
     # select data from events for defined country 
     # note: we are not filtering by Actor1CountryCode (and 2) because they do not seem to be accurate
-    _gdelt_data_batch = _gdelt_data_batch.loc[(_gdelt_data_batch.ActionGeo_CountryCode.isin(country_codes)) | 
-                                              (_gdelt_data_batch.Actor1Geo_CountryCode.isin(country_codes)) | 
-                                              (_gdelt_data_batch.Actor2Geo_CountryCode.isin(country_codes))].copy()
+    _gdelt_data_batch = _gdelt_data_batch.loc[(_gdelt_data_batch.ActionGeo_CountryCode.isin(COUNTRY_CODES)) | 
+                                              (_gdelt_data_batch.Actor1Geo_CountryCode.isin(COUNTRY_CODES)) | 
+                                              (_gdelt_data_batch.Actor2Geo_CountryCode.isin(COUNTRY_CODES))].copy()
     print('Number of country relevant events:', _gdelt_data_batch.shape[0])
     # reset index
     _gdelt_data_batch.reset_index(inplace=True, drop=True)
@@ -133,7 +130,7 @@ spdf = spark.createDataFrame(gdelt_data_full_search, StructType(schema))
 # COMMAND ----------
 
 # save output
-spdf.write.mode('append').format('delta').saveAsTable("{}.{}".format(DATABASE_NAME, TABLE_NAME))
+spdf.write.mode('append').format('delta').saveAsTable("{}.{}".format(DATABASE_NAME, GDELT_EVENT_TABLE))
 
 # COMMAND ----------
 
@@ -141,7 +138,7 @@ spdf.write.mode('append').format('delta').saveAsTable("{}.{}".format(DATABASE_NA
 if error_df.shape[0] > 0:
     eschema = [StructField(col, StringType(), True) for col in error_df.columns]
     spedf = spark.createDataFrame(error_df, StructType(eschema))
-    spedf.write.mode('append').format('delta').saveAsTable("{}.{}".format(DATABASE_NAME, ERROR_TABLE_NAME))
+    spedf.write.mode('append').format('delta').saveAsTable("{}.{}".format(DATABASE_NAME, GDELT_ERROR_TABLE))
 
 # COMMAND ----------
 

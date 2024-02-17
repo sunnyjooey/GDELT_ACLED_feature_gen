@@ -1,6 +1,6 @@
 # Databricks notebook source
 # MAGIC %md
-# MAGIC This notebook downloads the GDELT GSG embeddings data. Change `start_date`, `end_date`.
+# MAGIC This notebook downloads the GDELT GSG embeddings data.
 
 # COMMAND ----------
 
@@ -24,13 +24,11 @@ from pyspark.sql.types import StructType, StructField, StringType, FloatType
 
 # COMMAND ----------
 
-# Input Params
-start_date = '2023-02-01'  # inclusive
-end_date = '2023-05-01'  # exclusive: download does not include this day 
-DATABASE_NAME = 'news_media'
-INPUT_TABLE_NAME = 'horn_africa_gdelt_events_brz'
-OUTPUT_TABLE_NAME = 'horn_africa_gdelt_gsgembed_brz'
-ERROR_TABLE_NAME = 'horn_africa_errors'
+# import variables
+import sys
+sys.path.append('../util')
+
+from db_table import START_DATE, END_DATE, DATABASE_NAME, GDELT_EVENT_TABLE, GDELT_EMBED_TABLE, GDELT_ERROR_TABLE
 
 # COMMAND ----------
 
@@ -43,7 +41,7 @@ def get_date_time_intervals(_start_date, _end_date):
     return _date_time_range
 
 # get dates
-date_range = get_date_time_intervals(start_date, end_date)
+date_range = get_date_time_intervals(START_DATE, END_DATE)
 
 # exclude last time frame published at midnight for last 15 min from day before
 date_range = date_range[:-1]
@@ -81,7 +79,7 @@ for batch in range(num_batches_date):
     after = day + dt.timedelta(2)
 
     # for filtering events data for easier merging
-    events = spark.sql(f"SELECT * FROM {DATABASE_NAME}.{INPUT_TABLE_NAME}")
+    events = spark.sql(f"SELECT * FROM {DATABASE_NAME}.{GDELT_EVENT_TABLE}")
     events = events.withColumn('DATEADDED', F.to_timestamp('DATEADDED', format='yyyyMMddHHmmss'))
     events = events.withColumn('DATEADDED', F.to_date('DATEADDED'))
     events = events.filter((events.DATEADDED >= before) & (events.DATEADDED <= after))
@@ -118,7 +116,7 @@ for batch in range(num_batches_date):
         except Exception as e:
             edf = pd.DataFrame({'date':[_date], 'data':['gsg_embed'], 'error':[str(e)]})
             spedf = spark.createDataFrame(edf, StructType(eschema))
-            spedf.write.mode('append').format('delta').saveAsTable("{}.{}".format(DATABASE_NAME, ERROR_TABLE_NAME))
+            spedf.write.mode('append').format('delta').saveAsTable("{}.{}".format(DATABASE_NAME, GDELT_ERROR_TABLE)
             print(f'#### FAILED AT {date} - ####')
 
     # reset index
@@ -129,7 +127,7 @@ for batch in range(num_batches_date):
     spark.conf.set("spark.sql.execution.arrow.pyspark.enabled", "true")
     spdf = spark.createDataFrame(_gdelt_data_batch, StructType(str_schema))
     # save output
-    spdf.write.mode('append').format('delta').saveAsTable("{}.{}".format(DATABASE_NAME, OUTPUT_TABLE_NAME))
+    spdf.write.mode('append').format('delta').saveAsTable("{}.{}".format(DATABASE_NAME, GDELT_EMBED_TABLE))
 
     # unpdate indices for next batch
     idx_date += batch_size_date
