@@ -17,7 +17,8 @@ from functools import reduce
 import sys
 sys.path.append('../util')
 
-from db_table import START_DATE, END_DATE, DATABASE_NAME, ACLED_CONFL_HIST_TABLE, COUNTRY_KEYS, N_LAGS
+from db_table import START_DATE, END_DATE, DATABASE_NAME, ACLED_CONFL_HIST_1_TABLE, COUNTRY_KEYS, N_LAGS
+from util import get_all_acled, get_one_co_data
 
 # COMMAND ----------
 
@@ -27,41 +28,7 @@ INTERVAL = '1W-MON'
 # COMMAND ----------
 
 # import ACLED data function
-from pyspark.sql import SparkSession
-from pyspark.dbutils import DBUtils
-
-spark = SparkSession.builder.getOrCreate()
-dbutils = DBUtils(spark)
-
-database_host = dbutils.secrets.get(scope='warehouse_scope', key='database_host')
-database_port = dbutils.secrets.get(scope='warehouse_scope', key='database_port')
-user = dbutils.secrets.get(scope='warehouse_scope', key='user')
-password = dbutils.secrets.get(scope='warehouse_scope', key='password')
-
-database_name = "UNDP_DW_CRD"
-table = "dbo.CRD_ACLED"
-url = f"jdbc:sqlserver://{database_host}:{database_port};databaseName={database_name};"
-
-df_all = (spark.read
-      .format("com.microsoft.sqlserver.jdbc.spark")
-      .option("url", url)
-      .option("dbtable", table)
-      .option("user", user)
-      .option("password", password)
-      .load()
-    )
-
-# COMMAND ----------
-
-def get_data(df, cnty_code, admin_col):
-    # sudan country code - filter first before converting to pandas
-    df = df.filter(df.CountryFK==cnty_code)
-    df = df.toPandas()
-    # convert admin to category - make sure admins are not left out in groupby
-    df[admin_col] = df[admin_col].astype('category')
-    # create year-month column
-    df['TimeFK_Event_Date'] = df['TimeFK_Event_Date'].apply(lambda x: dt.datetime.strptime(str(x),'%Y%m%d'))    
-    return df
+df_all = get_all_acled()
 
 # COMMAND ----------
 
@@ -134,7 +101,7 @@ lag = pd.DataFrame()
 
 for CO, CO_ACLED_NO in COUNTRY_KEYS.items():
     # query data to one country
-    df = get_data(df_all, CO_ACLED_NO, 'ACLED_Admin1')
+    df = get_one_co_data(df_all, CO_ACLED_NO, 'ACLED_Admin1')
     # get all lagged features
     d = make_lagged_features(df, N_LAGS, 'TimeFK_Event_Date', INTERVAL, data_start_date, data_end_date, 'ACLED_Admin1', 'ACLED_Event_Type', 'ACLED_Fatalities', 'sum')
     d = d.sort_values('TimeFK_Event_Date')
@@ -167,7 +134,7 @@ mrg = spark.createDataFrame(mrg)
 
 # COMMAND ----------
 
-mrg.write.mode('append').format('delta').saveAsTable(f"{DATABASE_NAME}.{OUTPUT_TABLE_NAME}")
+mrg.write.mode('append').format('delta').saveAsTable(f"{DATABASE_NAME}.{ACLED_CONFL_HIST_1_TABLE}")
 
 # COMMAND ----------
 

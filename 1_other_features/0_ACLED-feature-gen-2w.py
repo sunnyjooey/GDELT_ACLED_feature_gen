@@ -1,10 +1,12 @@
 # Databricks notebook source
 # MAGIC %md
-# MAGIC Notebook for generating 2 week interval with 1 week sliding window  
-# MAGIC Both sum-deaths and time-since features
+# MAGIC Notebook for generating ACLED conflict history features with 2 week intervals and 1 week sliding windows  
+# MAGIC Includes both `sum-deaths` and `time-since` features  
+# MAGIC ***WARNING***: The start and end dates for querying ACLED data need to be manually calculated! It has not been functionalized!
 
 # COMMAND ----------
 
+# import libraries
 import pandas as pd
 import numpy as np
 import datetime as dt
@@ -12,57 +14,22 @@ from functools import reduce
 
 # COMMAND ----------
 
+# import variables
+import sys
+sys.path.append('../util')
+
+from db_table import DATABASE_NAME, ACLED_CONFL_HIST_2_TABLE, COUNTRY_KEYS
+from util import get_all_acled, get_one_co_data
+
+# COMMAND ----------
+
 # 2-week intervals starting on monday
 INTERVAL = '2W-MON'
-# country codes
-country_keys = {
-    'SU': 214,
-    'OD': 227,
-    'ET': 108,
-    'ER': 104,
-    'DJ': 97,
-    'SO': 224,
-    'UG': 235,
-    'KE': 175
-}
 
 # COMMAND ----------
 
-from pyspark.sql import SparkSession
-from pyspark.dbutils import DBUtils
-
-spark = SparkSession.builder.getOrCreate()
-dbutils = DBUtils(spark)
-
-database_host = dbutils.secrets.get(scope='warehouse_scope', key='database_host')
-database_port = dbutils.secrets.get(scope='warehouse_scope', key='database_port')
-user = dbutils.secrets.get(scope='warehouse_scope', key='user')
-password = dbutils.secrets.get(scope='warehouse_scope', key='password')
-
-database_name = "UNDP_DW_CRD"
-table = "dbo.CRD_ACLED"
-url = f"jdbc:sqlserver://{database_host}:{database_port};databaseName={database_name};"
-
-df_all = (spark.read
-      .format("com.microsoft.sqlserver.jdbc.spark")
-      .option("url", url)
-      .option("dbtable", table)
-      .option("user", user)
-      .option("password", password)
-      .load()
-    )
-
-# COMMAND ----------
-
-def get_data(df, cnty_code, admin_col):
-    # sudan country code - filter first before converting to pandas
-    df = df.filter(df.CountryFK==cnty_code)
-    df = df.toPandas()
-    # convert admin to category - make sure admins are not left out in groupby
-    df[admin_col] = df[admin_col].astype('category')
-    # create year-month column
-    df['TimeFK_Event_Date'] = df['TimeFK_Event_Date'].apply(lambda x: dt.datetime.strptime(str(x),'%Y%m%d'))    
-    return df
+# import ACLED data function
+df_all = get_all_acled()
 
 # COMMAND ----------
 
@@ -120,9 +87,9 @@ def make_lagged_features(df, num_lags, date_col, freq, data_start_date, data_end
 
 lag = pd.DataFrame()
 
-for CO, CO_ACLED_NO in country_keys.items():
+for CO, CO_ACLED_NO in COUNTRY_KEYS.items():
     # query data to one country
-    df = get_data(df_all, CO_ACLED_NO, 'ACLED_Admin1')
+    df = get_one_co_data(df_all, CO_ACLED_NO, 'ACLED_Admin1')
 
     # data_start_date: where to start the data (beginning of the lags), 
     # # # calculate by multiplying num_lags and INTERVAL and subtracting from where to start the feature set 
@@ -140,10 +107,6 @@ for CO, CO_ACLED_NO in country_keys.items():
     lag = pd.concat([lag, d])
 
 lag = lag.rename(columns={'TimeFK_Event_Date':'STARTDATE', 'ACLED_Admin1':'ADMIN1'})
-
-# COMMAND ----------
-
-lag
 
 # COMMAND ----------
 
@@ -212,9 +175,9 @@ def get_time_since_df(df, m_since_lst, date_col, freq, admin_col, event_type_col
 
 ts = pd.DataFrame()
 
-for CO, CO_ACLED_NO in country_keys.items():
+for CO, CO_ACLED_NO in COUNTRY_KEY.items():
     # query data
-    df = get_data(df_all, CO_ACLED_NO, 'ACLED_Admin1')
+    df = get_one_co_data(df_all, CO_ACLED_NO, 'ACLED_Admin1')
 
     # convert admin to category - make sure admins are not left out in groupby
     s1 = get_time_since_df(df, [1, 5, 20], 'TimeFK_Event_Date', INTERVAL, 'ACLED_Admin1', 'ACLED_Event_Type', 'ACLED_Fatalities', dt.datetime(2011,1,1,0,0,0), dt.datetime(2023,5,1,0,0,0))
@@ -229,10 +192,6 @@ for CO, CO_ACLED_NO in country_keys.items():
     ts = pd.concat([ts, s])
 
 ts = ts.rename(columns={'TimeFK_Event_Date':'STARTDATE', 'level_1':'ADMIN1'})
-
-# COMMAND ----------
-
-ts
 
 # COMMAND ----------
 
@@ -265,21 +224,12 @@ mrg.columns = [c.replace('/','_').replace(' ','_') for c in mrg.columns]
 
 # COMMAND ----------
 
-mrg
-
-# COMMAND ----------
-
 spark.conf.set("spark.sql.execution.arrow.pyspark.enabled", "true")
 mrg = spark.createDataFrame(mrg)
 
 # COMMAND ----------
 
-mrg.write.mode('append').format('delta').saveAsTable("news_media.horn_africa_acled_confhist_2w_gld")
-
-# COMMAND ----------
-
-# check for NAs
-# n = mrg[mrg.isnull().any(axis=1)]
+mrg.write.mode('append').format('delta').saveAsTable(f"{DATABASE_NAME}.{ACLED_CONFL_HIST_2_TABLE}")
 
 # COMMAND ----------
 
