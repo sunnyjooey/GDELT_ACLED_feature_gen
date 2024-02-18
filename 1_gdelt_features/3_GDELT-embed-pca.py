@@ -1,199 +1,138 @@
 # Databricks notebook source
+# MAGIC %md
+# MAGIC This notebook can be used to do PCA on the embeddings data (particularly the lagged data with too many columns). Note that there is no date querying. For now, conduct PCA on the full data. For later, make functions to save PCA models and apply on incoming data. Note, table names (for outputs) are defined within the notebook instead of in `db_table`. 
+
+# COMMAND ----------
+
+# import libraries
 from sklearn.decomposition import PCA
 import pandas as pd
 import numpy as np
 
 # COMMAND ----------
 
-DATABASE_NAME = 'news_media' 
-INPUT_TABLE_NAME = 'horn_africa_gdelt_gsgembed_1w_a1_8020_lag4_slv'
+# import variables
+import sys
+sys.path.append('../util')
+
+from db_table import DATABASE_NAME, GDELT_EMBED_PROCESS_LAG_TABLE
 
 # COMMAND ----------
 
-data = spark.sql(f"SELECT * FROM {DATABASE_NAME}.{INPUT_TABLE_NAME}")
+# import data
+data = spark.sql(f"SELECT * FROM {DATABASE_NAME}.{GDELT_EMBED_PROCESS_LAG_TABLE}")
 df = data.toPandas()
 
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ### PCA. Full dataset, LARGE N of components (500)
+# MAGIC ### PCA. Full dataset
 
 # COMMAND ----------
 
-#dropping non-numerical features
-d = df.drop(['STARTDATE', 'ENDDATE', 'ADMIN1', 'COUNTRY'], axis=1) 
+def full_data_pca(df, n_components, verbose=True):
+    # define output table name
+    OUTPUT_TABLE_NAME = GDELT_EMBED_PROCESS_LAG_TABLE.replace('_gld', f'_pca_{n_components}_gld').replace('_slv', f'_pca_{n_components}_gld')
 
-# setting N of components to 500
-pca = PCA(n_components=500)
+    # dropping non-numerical features
+    d = df.drop(['STARTDATE', 'ENDDATE', 'ADMIN1', 'COUNTRY'], axis=1) 
 
-# performing PCA
-pca_result_500component = pca.fit_transform(d)
+    # setting N of components 
+    pca = PCA(n_components=n_components)
 
-# bringing back non-numericals
-non_numericals = df[['STARTDATE', 'ENDDATE', 'ADMIN1', 'COUNTRY']]
-pca_result_500component = pd.DataFrame(pca_result_500component)
-pca_result_500component = pd.concat([non_numericals, pca_result_500component], axis=1)
+    # performing PCA
+    pca_result = pca.fit_transform(d)
 
-#saving dataset
-OUTPUT_TABLE_NAME = 'horn_africa_gdelt_gsgembed_1w_a1_8020_lag4_pca_500_slv'
-pca_result_500component = spark.createDataFrame(pca_result_500component)
-pca_result_500component.write.mode('append').format('delta').saveAsTable("{}.{}".format(DATABASE_NAME, OUTPUT_TABLE_NAME)) 
+    # bringing back non-numericals
+    non_numericals = df[['STARTDATE', 'ENDDATE', 'ADMIN1', 'COUNTRY']]
+    pca_result = pd.DataFrame(pca_result)
+    pca_result = pd.concat([non_numericals, pca_result], axis=1)
 
-#pca_result_500component.head(3)
+    if verbose:
+        print(OUTPUT_TABLE_NAME)
+        display(pca_result.head(20))
+
+    # saving dataset
+    pca_result = spark.createDataFrame(pca_result)
+    pca_result.write.mode('append').format('delta').saveAsTable("{}.{}".format(DATABASE_NAME, OUTPUT_TABLE_NAME))
+    print(f'Saved {DATABASE_NAME}.{OUTPUT_TABLE_NAME}!')
 
 # COMMAND ----------
 
-# MAGIC %md
-# MAGIC ### PCA. Full dataset, SMALL N of components (200)
+### LARGE NUMBER OF COMPONENTS ###
+full_data_pca(df, 500)
 
 # COMMAND ----------
 
-#dropping non-numerical features
-d = df.drop(['STARTDATE', 'ENDDATE', 'ADMIN1', 'COUNTRY'], axis=1) 
-
-# setting N of components to 200
-pca = PCA(n_components=200)
-
-# performing PCA
-pca_result_200component = pca.fit_transform(d)
-
-# bringing back non-numericals
-non_numericals = df[['STARTDATE', 'ENDDATE', 'ADMIN1', 'COUNTRY']]
-pca_result_200component = pd.DataFrame(pca_result_200component)
-pca_result_200component = pd.concat([non_numericals, pca_result_200component], axis=1)
-
-#saving dataset
-OUTPUT_TABLE_NAME = 'horn_africa_gdelt_gsgembed_1w_a1_8020_lag4_pca_200_slv'
-pca_result_200component = spark.createDataFrame(pca_result_200component)
-pca_result_200component.write.mode('append').format('delta').saveAsTable("{}.{}".format(DATABASE_NAME, OUTPUT_TABLE_NAME)) 
-
-#pca_result_200component.head(3)
+### SMALL NUMBER OF COMPONENTS ###
+full_data_pca(df, 200)
 
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ### PCA: preformed on different 't' separately, with N=120 components per type of 't'
+# MAGIC ### PCA: preformed on different 't' separately
 
 # COMMAND ----------
 
-t1s = df.iloc[:, 4:516]
-t2s = df.iloc[:, 516:1028]
-t3s = df.iloc[:, 1028:1540]
-t4s = df.iloc[:, 1540:]
+# Note: this function assumes 4 lags, further functionalization needed for other number of lags
 
-# keeping non-numerical features separately
-non_numericals = df[['STARTDATE', 'ENDDATE', 'ADMIN1', 'COUNTRY']]
+def separate_t_pca(df, n_components, verbose=True):
+    # define output table name
+    OUTPUT_TABLE_NAME = GDELT_EMBED_PROCESS_LAG_TABLE.replace('_gld', f'_pca_{n_components}_per_t_gld').replace('_slv', f'_pca_{n_components}_per_t_gld')
 
-# setting N of components to 120
-pca = PCA(n_components=120)
+    # split data by t
+    t1s = df.loc[:, [x for x in df.columns if 't-1' in x]]
+    t2s = df.loc[:, [x for x in df.columns if 't-2' in x]]
+    t3s = df.loc[:, [x for x in df.columns if 't-3' in x]]
+    t4s = df.loc[:, [x for x in df.columns if 't-4' in x]]
 
-# performing PCA
-pca_120_t1 = pca.fit_transform(t1s)
-pca_120_t2 = pca.fit_transform(t2s)
-pca_120_t3 = pca.fit_transform(t3s)
-pca_120_t4 = pca.fit_transform(t4s)
+    # keeping non-numerical features separately
+    non_numericals = df[['STARTDATE', 'ENDDATE', 'ADMIN1', 'COUNTRY']]
 
-# bringing back non-numericals and concatenating pca results per each 't-X'
-non_numericals = df[['STARTDATE', 'ENDDATE', 'ADMIN1', 'COUNTRY']]
-pca_120_t1 = pd.DataFrame(pca_120_t1)
-pca_120_t2 = pd.DataFrame(pca_120_t2)
-pca_120_t3 = pd.DataFrame(pca_120_t3)
-pca_120_t4 = pd.DataFrame(pca_120_t4)
+    # setting N of components
+    pca = PCA(n_components=n_components)
 
-pca_per_t_120comp = pd.concat([non_numericals, pca_120_t1, pca_120_t2, pca_120_t3, pca_120_t4], axis=1)
+    # performing PCA
+    pca_120_t1 = pca.fit_transform(t1s)
+    pca_120_t2 = pca.fit_transform(t2s)
+    pca_120_t3 = pca.fit_transform(t3s)
+    pca_120_t4 = pca.fit_transform(t4s)
 
-# taking care of the columns names
-cols = ['STARTDATE', 'ENDDATE', 'ADMIN1', 'COUNTRY']
-t1 = 't-1'
-t2 = 't-2'
-t3 = 't-3'
-t4 = 't-4'
+    # bringing back non-numericals and concatenating pca results per each 't-X'
+    non_numericals = df[['STARTDATE', 'ENDDATE', 'ADMIN1', 'COUNTRY']]
+    pca_120_t1 = pd.DataFrame(pca_120_t1)
+    pca_120_t2 = pd.DataFrame(pca_120_t2)
+    pca_120_t3 = pd.DataFrame(pca_120_t3)
+    pca_120_t4 = pd.DataFrame(pca_120_t4)
 
-for i in range(120):
-    t = str(i) + '_' + t1
-    cols.append(t)
-for i in range(120):
-    t = str(i) + '_' + t2
-    cols.append(t)
-for i in range(120):
-    t = str(i) + '_' + t3
-    cols.append(t)
-for i in range(120):
-    t = str(i) + '_' + t4
-    cols.append(t)
+    pca_per_t_120comp = pd.concat([non_numericals, pca_120_t1, pca_120_t2, pca_120_t3, pca_120_t4], axis=1)
 
-pca_per_t_120comp.columns = cols
+    # taking care of the columns names
+    cols = ['STARTDATE', 'ENDDATE', 'ADMIN1', 'COUNTRY']
+    cols.extend([f'{i}_t-1' for i in range(n_components)])
+    cols.extend([f'{i}_t-2' for i in range(n_components)])
+    cols.extend([f'{i}_t-3' for i in range(n_components)])
+    cols.extend([f'{i}_t-4' for i in range(n_components)])
+    pca_per_t_120comp.columns = cols
 
-# inspect the result
-#pca_per_t_120comp.head(10)
+    if verbose:
+        print(OUTPUT_TABLE_NAME)
+        display(pca_per_t_120comp.head(20))
 
-#saving dataset
-OUTPUT_TABLE_NAME = 'horn_africa_gdelt_gsgembed_1w_a1_8020_lag4_pca_120_per_t_slv'
-pca_per_t_120comp = spark.createDataFrame(pca_per_t_120comp)
-pca_per_t_120comp.write.mode('append').format('delta').saveAsTable("{}.{}".format(DATABASE_NAME, OUTPUT_TABLE_NAME)) 
+    # saving dataset
+    pca_per_t_120comp = spark.createDataFrame(pca_per_t_120comp)
+    pca_per_t_120comp.write.mode('append').format('delta').saveAsTable("{}.{}".format(DATABASE_NAME, OUTPUT_TABLE_NAME)) 
+    print(f'Saved {DATABASE_NAME}.{OUTPUT_TABLE_NAME}!')
 
 # COMMAND ----------
 
-# MAGIC %md
-# MAGIC ### PCA: preformed on different 't' separately, with N=50 components per type of 't'
+### LARGE NUMBER SEPARATE COMPONENTS ###
+separate_t_pca(df, 120)
 
 # COMMAND ----------
 
-t1s = df.iloc[:, 4:516]
-t2s = df.iloc[:, 516:1028]
-t3s = df.iloc[:, 1028:1540]
-t4s = df.iloc[:, 1540:]
-
-# keeping non-numerical features separately
-non_numericals = df[['STARTDATE', 'ENDDATE', 'ADMIN1', 'COUNTRY']]
-
-# setting N of components to 50
-pca = PCA(n_components=50)
-
-# performing PCA
-pca_50_t1 = pca.fit_transform(t1s)
-pca_50_t2 = pca.fit_transform(t2s)
-pca_50_t3 = pca.fit_transform(t3s)
-pca_50_t4 = pca.fit_transform(t4s)
-
-# bringing back non-numericals and concatenating pca results per each 't-X'
-non_numericals = df[['STARTDATE', 'ENDDATE', 'ADMIN1', 'COUNTRY']]
-pca_50_t1 = pd.DataFrame(pca_50_t1)
-pca_50_t2 = pd.DataFrame(pca_50_t2)
-pca_50_t3 = pd.DataFrame(pca_50_t3)
-pca_50_t4 = pd.DataFrame(pca_50_t4)
-
-pca_per_t_50comp = pd.concat([non_numericals, pca_50_t1, pca_50_t2, pca_50_t3, pca_50_t4], axis=1)
-
-# taking care of the columns names
-cols = ['STARTDATE', 'ENDDATE', 'ADMIN1', 'COUNTRY']
-t1 = 't-1'
-t2 = 't-2'
-t3 = 't-3'
-t4 = 't-4'
-
-for i in range(50):
-    t = str(i) + '_' + t1
-    cols.append(t)
-for i in range(50):
-    t = str(i) + '_' + t2
-    cols.append(t)
-for i in range(50):
-    t = str(i) + '_' + t3
-    cols.append(t)
-for i in range(50):
-    t = str(i) + '_' + t4
-    cols.append(t)
-
-pca_per_t_50comp.columns = cols
-
-# inspect the result
-# pca_per_t_50comp.head(10)
-
-#saving dataset
-OUTPUT_TABLE_NAME = 'horn_africa_gdelt_gsgembed_1w_a1_8020_lag4_pca_50_per_t_slv'
-pca_per_t_50comp = spark.createDataFrame(pca_per_t_50comp)
-pca_per_t_50comp.write.mode('append').format('delta').saveAsTable("{}.{}".format(DATABASE_NAME, OUTPUT_TABLE_NAME)) 
+### SMALL NUMBER SEPARATE COMPONENTS ###
+separate_t_pca(df, 50)
 
 # COMMAND ----------
 
@@ -211,12 +150,16 @@ pca_80_variance[0].size
 # COMMAND ----------
 
 # PCA. Full dataset, N of components (383) - 80% of variance kept
+n_components = 383
 
-#dropping non-numerical features
+# output table name suggested: GDELT_EMBED_PROCESS_LAG_TABLE.replace('_gld', f'_pca_{n_components}_gld').replace('_slv', f'_pca_{n_components}_gld')
+OUTPUT_TABLE_NAME = 'horn_africa_gdelt_gsgembed_1w_a1_8020_lag4_pca_383_slv'
+
+# dropping non-numerical features
 d = df.drop(['STARTDATE', 'ENDDATE', 'ADMIN1', 'COUNTRY'], axis=1) 
 
 # setting N of components to 383
-pca = PCA(n_components=383)
+pca = PCA(n_components=n_components)
 
 # performing PCA
 pca_result_383component = pca.fit_transform(d)
@@ -226,17 +169,8 @@ non_numericals = df[['STARTDATE', 'ENDDATE', 'ADMIN1', 'COUNTRY']]
 pca_result_383component = pd.DataFrame(pca_result_383component)
 pca_result_383component = pd.concat([non_numericals, pca_result_383component], axis=1)
 
-#saving dataset
-OUTPUT_TABLE_NAME = 'horn_africa_gdelt_gsgembed_1w_a1_8020_lag4_pca_383_slv'
+# saving dataset
 pca_result_383component = spark.createDataFrame(pca_result_383component)
 pca_result_383component.write.mode('append').format('delta').saveAsTable("{}.{}".format(DATABASE_NAME, OUTPUT_TABLE_NAME)) 
 
-#pca_result_383component.head(3)
-
-# COMMAND ----------
-
-# # Best number of components? part2
-# d = df.drop(['STARTDATE', 'ENDDATE', 'ADMIN1', 'COUNTRY'], axis=1) 
-# pca = PCA(n_components='mle') # Minka’s MLE is used to guess the dimension, aka 'automatic'
-# pca_mle = pca.fit_transform(d)
-# pca_mle[0].size
+# pca_result_383component.head(3)
