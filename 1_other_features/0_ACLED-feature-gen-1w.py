@@ -1,10 +1,11 @@
 # Databricks notebook source
 # MAGIC %md
-# MAGIC Notebook for generating 1 week intervals  
-# MAGIC Only sum-deaths
+# MAGIC Notebook for generating ACLED lagged conflict history features at 1 week intervals   
+# MAGIC Includes only `sum-deaths` features
 
 # COMMAND ----------
 
+# import libraries
 import pandas as pd
 import numpy as np
 import datetime as dt
@@ -12,28 +13,20 @@ from functools import reduce
 
 # COMMAND ----------
 
-DATABASE_NAME = 'news_media'
-# CHANGE ME!!
-OUTPUT_TABLE_NAME = 'horn_africa_acled_sumfat_1w_gld'
+# import variables
+import sys
+sys.path.append('../util')
+
+from db_table import START_DATE, END_DATE, DATABASE_NAME, ACLED_CONFL_HIST_TABLE, COUNTRY_KEYS, N_LAGS
 
 # COMMAND ----------
 
 # 1-week intervals starting on monday
 INTERVAL = '1W-MON'
-# country codes
-country_keys = {
-    'SU': 214,
-    'OD': 227,
-    'ET': 108,
-    'ER': 104,
-    'DJ': 97,
-    'SO': 224,
-    'UG': 235,
-    'KE': 175
-}
 
 # COMMAND ----------
 
+# import ACLED data function
 from pyspark.sql import SparkSession
 from pyspark.dbutils import DBUtils
 
@@ -124,17 +117,26 @@ def make_lagged_features(df, num_lags, date_col, freq, data_start_date, data_end
 
 # COMMAND ----------
 
+# calculate ACLED data start and end date to query
+start_date = START_DATE.split('-')
+end_date = END_DATE.split('-')
+
+# data_start_date: where to start the data (beginning of the lags)
+# # # if INTERVAL is 1 week, calculate by subtracting N_LAGS weeks from the start of the feature set (2019, 12, 30 in GDELT)
+# data_end_date: where to cut off the feature set
+nweeks = -1 * N_LAGS  # this needs to be changed if intervals and windows don't match (e.g. 2w interval, 1w sliding window)
+data_start_date = dt.datetime(int(start_date[0]), int(start_date[1]), int(start_date[2])) + dt.timedelta(weeks=nweeks)
+data_end_date = dt.datetime(int(end_date[0]), int(end_date[1]), int(end_date[2]))
+
+# COMMAND ----------
+
 lag = pd.DataFrame()
 
-for CO, CO_ACLED_NO in country_keys.items():
+for CO, CO_ACLED_NO in COUNTRY_KEYS.items():
     # query data to one country
     df = get_data(df_all, CO_ACLED_NO, 'ACLED_Admin1')
-
-    # data_start_date: where to start the data (beginning of the lags), 
-    # # # calculate by multiplying num_lags and INTERVAL and subtracting from where to start the feature set 
-    # # # feature set start date is: 2019, 12, 30 - make sure this and data_start_date are in line with INTERVAL (a MONDAY!)
-    # data_end_date: where to cut off the feature set
-    d = make_lagged_features(df, 4, 'TimeFK_Event_Date', INTERVAL, dt.datetime(2019, 11, 18), dt.datetime(2023, 5, 1), 'ACLED_Admin1', 'ACLED_Event_Type', 'ACLED_Fatalities', 'sum')
+    # get all lagged features
+    d = make_lagged_features(df, N_LAGS, 'TimeFK_Event_Date', INTERVAL, data_start_date, data_end_date, 'ACLED_Admin1', 'ACLED_Event_Type', 'ACLED_Fatalities', 'sum')
     d = d.sort_values('TimeFK_Event_Date')
     d['COUNTRY'] = CO
     lag = pd.concat([lag, d])
@@ -157,10 +159,6 @@ cols = [c for c in mrg.columns if c not in ['STARTDATE', 'COUNTRY', 'ADMIN1']]
 cols = ['STARTDATE', 'COUNTRY', 'ADMIN1'] + cols
 mrg = mrg[cols]
 mrg.columns = [c.replace('/','_').replace(' ','_') for c in mrg.columns]
-
-# COMMAND ----------
-
-mrg
 
 # COMMAND ----------
 
