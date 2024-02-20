@@ -6,6 +6,10 @@
 
 # COMMAND ----------
 
+dbutils.library.restartPython()
+
+# COMMAND ----------
+
 import os
 import rasterio
 from rasterio.plot import show, show_hist
@@ -18,52 +22,42 @@ import pandas as pd
 
 # COMMAND ----------
 
-DATABASE_NAME = 'news_media'
-OUTPUT_TABLE_NAME = 'horn_africa_geo_popdens2020_static_slv'
+# import variables
+import sys
+sys.path.append('../util')
+
+from db_table import DATABASE_NAME, GEO_POP_DENSE_TABLE
 
 # COMMAND ----------
 
-target_country = ['djibouti', 'eritrea', 'ethiopia', 'kenya', 
-                  'somalia', 'south_sudan', 'sudan', 'uganda']
+# country mapping
+target_country = {'djibouti':('dji', 'DJ'), 
+                  'eritrea':('eri', 'ER'), 
+                  'ethiopia':('eth', 'ET'), 
+                  'kenya':('ken', 'KE'), 
+                  'somalia':('som', 'SO'), 
+                  'southsudan':('ssd', 'OD'), 
+                  'sudan':('sdn', 'SU'), 
+                  'uganda':('uga', 'UG')}
+
+# file paths
+shapefile_path = '/dbfs/FileStore/geospatial/shapefiles/'
+tiff_path = '/dbfs/FileStore/geospatial/geotiff/hoa_pop_dense/'
 
 # COMMAND ----------
 
-# Get paths for the shape files and tiff files
+# match shape and tiff files
+shape_dirs = os.listdir(shapefile_path)
+tiff_files = next(os.walk(tiff_path), (None, None, []))[2]
 
-def get_all_child_paths(parent_path, dir_path=False, file_path=False):
-    """
-    Fetch the child directory/file path from the given parent path
-
-    Inputs:
-        parent_path: string
-        dir_path&file_path: bool indicating which type of path is to be fetched
-    """
-    child_paths = []
-
-    for dirpath, dirnames, filenames in os.walk(parent_path):
-        #For directory paths
-        if dir_path:
-            for dirname in dirnames:
-                child_paths.append(os.path.join(dirpath, dirname))
-        
-        # For file paths
-        if file_path:
-            for filename in filenames:
-                child_paths.append(os.path.join(dirpath, filename))
-
-    return child_paths
-
-
-shapefile_lst = get_all_child_paths('/dbfs/FileStore/df/shapefiles/', 
-                                    dir_path=True)
-tiff_lst = get_all_child_paths('/dbfs/FileStore/df/geotiff/', 
-                               file_path=True)
-
-# match the shape&tiff file combo with the corresponding country
-shape_tiff = tuple(zip(shapefile_lst, tiff_lst))
-country_file = dict(zip(target_country,shape_tiff))
-
-# COMMAND ----------
+country_file = {}
+for country, abv in target_country.items():
+    if country == 'sudan':
+        shp = [dr for dr in shape_dirs if (country in dr) and ('south' not in dr)]
+    else:
+        shp = [dr for dr in shape_dirs if country in dr]
+    tiff = [fl for fl in tiff_files if abv[0] in fl]
+    country_file[country] = (os.path.join(shapefile_path, shp[0]), os.path.join(tiff_path, tiff[0]))
 
 country_file
 
@@ -99,7 +93,7 @@ def test_compatibility(shapefile_path, raster_path):
         shapefile_crs = shapefile.crs
         shapefile_schema = shapefile.schema
     
-     # 1. Coordinate System / Projection
+    # 1. Coordinate System / Projection
     if raster_crs == shapefile_crs:
         print("Coordinate systems are compatible!")
     else:
@@ -207,13 +201,10 @@ def merge_geo(shapefile_path, raster_path):
 
     # Calculate the zonal stats
     stats = zonal_stats(shapefile_path, raster_path)
-    
     # Read the shapefile into a GeoDataFrame
     gdf = gpd.read_file(shapefile_path)
-    
     # Convert the list of dictionaries to a DataFrame
     stats_df = pd.DataFrame(stats)
-
     # Join the zonal statistics DataFrame with the original GeoDataFrame
     gdf_stats = gdf.join(stats_df)
     
@@ -221,17 +212,7 @@ def merge_geo(shapefile_path, raster_path):
 
 # COMMAND ----------
 
-co_dict = {
-    'djibouti':'DJ', 
-    'eritrea':'ER', 
-    'ethiopia':'ET', 
-    'kenya':'KE', 
-    'somalia':'SO',
-    'south_sudan':'OD', 
-    'sudan':'SU', 
-    'uganda':'UG'
-}
-
+# for uniform admin names
 adm_dict = {
     'Aj Jazirah':'Al Jazirah',
     'Abyei PCA':'Abyei',
@@ -243,17 +224,18 @@ adm_dict = {
     'Elgeyo-Marakwet':'Elgeyo Marakwet'
 }
 
+# Get stats by admin - this is where it happens
 df = pd.DataFrame()
-
 for country, files in country_file.items():
     shapefile_path, raster_path = files
     gdf = merge_geo(shapefile_path, raster_path)
     if 'ADM2_EN' not in gdf.columns:
         gdf.loc[:, 'ADM2_EN'] = None
     gdf_stats = gdf.loc[:,['ADM1_EN', 'ADM2_EN', 'mean']]
-    gdf_stats.loc[:, 'COUNTRY'] = co_dict[country]
+    gdf_stats.loc[:, 'COUNTRY'] = target_country[country][1]
     df = pd.concat([df, gdf_stats], axis=0)
 
+# Some data cleaning 
 df['ADMIN1'] =  df.apply(lambda row: row['ADM1_EN'] if row['ADM2_EN']==None else row['ADM2_EN'], axis=1)
 df['ADMIN1'] = df.apply(lambda row: adm_dict[row['ADMIN1']] if row['ADMIN1'] in adm_dict else row['ADMIN1'], axis=1)
 df.rename(columns={'mean': 'mean_pop_dense_2020'}, inplace=True)
@@ -267,8 +249,9 @@ df = spark.createDataFrame(df)
 
 # COMMAND ----------
 
-# Save the data 
-df.write.mode('append').format('delta').saveAsTable("{}.{}".format(DATABASE_NAME, OUTPUT_TABLE_NAME))
+# save in delta lake
+# this will write if the table does not exist, but throw an error if it does exist
+df.write.mode('errorifexists').format('delta').saveAsTable("{}.{}".format(DATABASE_NAME, GEO_POP_DENSE_TABLE))
 
 # COMMAND ----------
 
