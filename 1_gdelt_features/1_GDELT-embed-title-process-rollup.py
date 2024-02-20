@@ -37,7 +37,7 @@ print(emb.count())
 # filter to date range needed
 emb = emb.withColumn('DATEADDED', F.to_timestamp('DATEADDED', format='yyyyMMddHHmmss'))
 emb = emb.withColumn('DATEADDED', F.to_date('DATEADDED'))
-emb = emb.filter((emb['DATEADDED'] >= dt.datetime.strptime(start_date, '%Y-%m-%d').date()) & (emb['DATEADDED'] < dt.datetime.strptime(end_date, '%Y-%m-%d').date()))
+emb = emb.filter((emb['DATEADDED'] >= dt.datetime.strptime(START_DATE, '%Y-%m-%d').date()) & (emb['DATEADDED'] < dt.datetime.strptime(END_DATE, '%Y-%m-%d').date()))
 emb = emb.drop('DATEADDED')
 print(emb.count())
 
