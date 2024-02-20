@@ -1,8 +1,9 @@
+import pandas as pd
 import rasterio
 from rasterio.plot import show, show_hist
-import matplotlib.pyplot as plt
 import fiona
 import geopandas as gpd
+from rasterstats import zonal_stats
 import matplotlib.pyplot as plt
 
 
@@ -109,3 +110,26 @@ def geo_plot(shapefile_path, raster_path, hist=False):
         shape_gdf.plot(ax=ax1, facecolor="None", edgecolor="yellow")
     
     plt.show()
+
+
+def merge_geo(shapefile_path, raster_path):
+    """
+    Merge two datasets by calculating the zonal statistics
+    
+    Inputs:
+        shapefile_path: the path of the shape file
+        aster_path: the path of the raster file
+    Outputs:
+        stats: a dict of lists containing relevant stats
+    """
+
+    # Calculate the zonal stats
+    stats = zonal_stats(shapefile_path, raster_path)
+    # Read the shapefile into a GeoDataFrame
+    gdf = gpd.read_file(shapefile_path)
+    # Convert the list of dictionaries to a DataFrame
+    stats_df = pd.DataFrame(stats)
+    # Join the zonal statistics DataFrame with the original GeoDataFrame
+    gdf_stats = gdf.join(stats_df)
+    
+    return gdf_stats
