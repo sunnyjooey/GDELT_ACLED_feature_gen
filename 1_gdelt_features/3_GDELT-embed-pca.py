@@ -1,6 +1,6 @@
 # Databricks notebook source
 # MAGIC %md
-# MAGIC This notebook can be used to do PCA on the embeddings data (particularly the lagged data with too many columns). Note that there is no date querying. For now, conduct PCA on the full data. For later, make functions to save PCA models and apply on incoming data. Note, table names (for outputs) are defined within the notebook instead of in `db_table`. 
+# MAGIC This notebook can be used to do PCA on the embeddings data (particularly the lagged data with too many columns). Note that there is no date querying. For now, conduct PCA on the full data. For later, make functions to save PCA models and apply on incoming data. Note, table names (for outputs) are defined within the notebook instead of in `db_table`. The writes to the data lake will not append; it will write if the table does not exist, but throw an error if the table does exist.
 
 # COMMAND ----------
 
@@ -52,10 +52,14 @@ def full_data_pca(df, n_components, verbose=True):
         print(OUTPUT_TABLE_NAME)
         display(pca_result.head(20))
 
-    # saving dataset
-    pca_result = spark.createDataFrame(pca_result)
-    pca_result.write.mode('append').format('delta').saveAsTable("{}.{}".format(DATABASE_NAME, OUTPUT_TABLE_NAME))
-    print(f'Saved {DATABASE_NAME}.{OUTPUT_TABLE_NAME}!')
+    try:
+        # saving dataset - if it doesn't exist
+        pca_result = spark.createDataFrame(pca_result)
+        pca_result.write.mode('errorifexists').format('delta').saveAsTable("{}.{}".format(DATABASE_NAME, OUTPUT_TABLE_NAME))
+        print(f'Saved {DATABASE_NAME}.{OUTPUT_TABLE_NAME}!')
+    except Exception as e:
+        print(e)
+
 
 # COMMAND ----------
 
@@ -119,10 +123,13 @@ def separate_t_pca(df, n_components, verbose=True):
         print(OUTPUT_TABLE_NAME)
         display(pca_per_t_120comp.head(20))
 
-    # saving dataset
-    pca_per_t_120comp = spark.createDataFrame(pca_per_t_120comp)
-    pca_per_t_120comp.write.mode('append').format('delta').saveAsTable("{}.{}".format(DATABASE_NAME, OUTPUT_TABLE_NAME)) 
-    print(f'Saved {DATABASE_NAME}.{OUTPUT_TABLE_NAME}!')
+    try:
+        # saving dataset - if it doesn't exist
+        pca_per_t_120comp = spark.createDataFrame(pca_per_t_120comp)
+        pca_per_t_120comp.write.mode('errorifexists').format('delta').saveAsTable("{}.{}".format(DATABASE_NAME, OUTPUT_TABLE_NAME))
+        print(f'Saved {DATABASE_NAME}.{OUTPUT_TABLE_NAME}!')
+    except Exception as e:
+        print(e)
 
 # COMMAND ----------
 
@@ -169,8 +176,10 @@ non_numericals = df[['STARTDATE', 'ENDDATE', 'ADMIN1', 'COUNTRY']]
 pca_result_383component = pd.DataFrame(pca_result_383component)
 pca_result_383component = pd.concat([non_numericals, pca_result_383component], axis=1)
 
-# saving dataset
-pca_result_383component = spark.createDataFrame(pca_result_383component)
-pca_result_383component.write.mode('append').format('delta').saveAsTable("{}.{}".format(DATABASE_NAME, OUTPUT_TABLE_NAME)) 
-
-# pca_result_383component.head(3)
+try:
+    # saving dataset - if it doesn't exist
+    pca_result_383component = spark.createDataFrame(pca_result_383component)
+    pca_result_383component.write.mode('errorifexists').format('delta').saveAsTable("{}.{}".format(DATABASE_NAME, OUTPUT_TABLE_NAME))
+    print(f'Saved {DATABASE_NAME}.{OUTPUT_TABLE_NAME}!')
+except Exception as e:
+    print(e)
