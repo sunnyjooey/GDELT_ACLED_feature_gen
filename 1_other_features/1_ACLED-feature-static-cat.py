@@ -1,6 +1,7 @@
 # Databricks notebook source
 # MAGIC %md
-# MAGIC This notebook is meant to be used to experiment / do visual checks. It is NOT meant to be automated in a job.
+# MAGIC This notebook is meant to be used to experiment / do visual checks. It is NOT meant to be automated in a job. Save only the table meant to be used in the modeling.    
+# MAGIC Future: create this feature on a rolling basis. Currently, there is some backward leakage because the static variable is based on trends during the whole outcome duration.
 
 # COMMAND ----------
 
