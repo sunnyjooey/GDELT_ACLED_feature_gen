@@ -7,6 +7,7 @@ N_WEEK = 1
 # number of lags
 N_LAGS = 4
 
+
 ##### define database
 DATABASE_NAME = 'horn_africa_forecast'
 
@@ -28,6 +29,10 @@ GDELT_TITLE_CONCAT_TABLE = f'{GDELT_EVENT_PROCESS}_title_concat_{N_WEEK}w_gld'
 # ACLED
 ACLED_CONFL_HIST_1_TABLE = ''
 ACLED_CONFL_HIST_2_TABLE = ''
+ACLED_CONFL_TREND_TABLE = ''
+# OUTCOME
+ACLED_OUTCOME_TABLE = ''
+
 
 ##### define countries
 COUNTRY_CODES = ['SU', 'OD', 'ET', 'ER', 'DJ', 'SO', 'UG', 'KE']  

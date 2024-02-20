@@ -1,36 +1,56 @@
 # Databricks notebook source
+# MAGIC %md
+# MAGIC This notebook is meant to be used to experiment / do visual checks. It is NOT meant to be automated in a job.
+
+# COMMAND ----------
+
+# import libraries
+import numpy as np
 import pandas as pd
+import random
 import matplotlib.pyplot as plt
 
 # COMMAND ----------
 
+# import variables
+import sys
+sys.path.append('../util')
+
+from db_table import DATABASE_NAME, ACLED_OUTCOME_TABLE, ACLED_CONFL_TREND_TABLE
+
+# COMMAND ----------
+
 DATABASE_NAME = 'news_media'
-INPUT_DATA_TABLE = 'horn_africa_acled_outcome_fatal_escbin_1w_pct_slv'
-OUTPUT_DATA_TABLE = 'horn_africa_acled_conftrend_static_ct1_slv'
+ACLED_OUTCOME_TABLE = 'horn_africa_acled_outcome_fatal_escbin_1w_pct_slv'
+ACLED_CONFL_TREND_TABLE = 'horn_africa_acled_conftrend_static_ct1_slv'
 
 # COMMAND ----------
 
 # read in dependent variable
-escalation_data = spark.sql(f"SELECT * FROM {DATABASE_NAME}.{INPUT_DATA_TABLE}")
+escalation_data = spark.sql(f"SELECT * FROM {DATABASE_NAME}.{ACLED_OUTCOME_TABLE}")
 escalation_data = escalation_data.toPandas()
 
 # COMMAND ----------
 
 # make data wide
-e = escalation_data[['STARTDATE' ,'ADMIN1',	'COUNTRY', 'FATALSUM']]
+e = escalation_data.loc[:, ['STARTDATE', 'ADMIN1', 'COUNTRY', 'FATALSUM']]
 w = e.pivot(index=['COUNTRY','ADMIN1'], columns='STARTDATE', values='FATALSUM')
 
 # COMMAND ----------
 
 # create intermediary vars
+
+# proportion of time intervals with at least x fatalities
 def proportion_over_x(df, x):
     df[f'prop_{x}'] = df.apply(lambda row: len(row[row >= x]) / len(row), axis=1)
     return df
 
+# 1 if the maximum fatality is over x, 0 otherwise
 def max_over_x(df, x):
     df[f'max_{x}'] = df.apply(lambda row: 1 if max(row) >= x else 0, axis=1)
     return df
 
+# number of time intervals with at least x fatalities
 def num_over_x(df, x):
     df[f'n_{x}'] = df[df >= x].count(axis=1)
     return df
@@ -59,35 +79,38 @@ w.groupby('trend_cat1').size()
 
 # COMMAND ----------
 
-dummies = pd.get_dummies(w['trend_cat1']).rename(columns=lambda x: 'conflict_trend_' + str(x))
+# convert categories into dummies
+dummies = pd.get_dummies(w['trend_cat1'], dtype=np.int64).rename(columns=lambda x: 'conflict_trend_' + str(x))
 w = pd.concat([w, dummies], axis=1)
 w = w.drop(['trend_cat1'], axis=1)
 
 # COMMAND ----------
 
-import random
-%matplotlib inline
+# MAGIC %matplotlib inline
+# MAGIC
+# MAGIC # do a visual check
+# MAGIC def graph_it(long_df, wide_df, filter_col, sample=None):
+# MAGIC     cdf = pd.merge(long_df, wide_df.loc[:, filter_col], on='ADMIN1', how='left')
+# MAGIC     cdf = cdf[cdf[filter_col] == 1]
+# MAGIC     if sample != None:
+# MAGIC         adm1s = random.sample(list(cdf.ADMIN1.unique()), sample)
+# MAGIC         cdf = cdf[cdf.ADMIN1.isin(adm1s)]
+# MAGIC     
+# MAGIC     # Plotting the fatalities over time by country
+# MAGIC     for adm1 in cdf.ADMIN1.unique():
+# MAGIC         plt.figure(figsize=(30, 10))
+# MAGIC         adm1_data = cdf[cdf['ADMIN1'] == adm1]
+# MAGIC         adm1_data = adm1_data.sort_values('STARTDATE')
+# MAGIC         plt.plot(adm1_data['STARTDATE'], adm1_data['FATALSUM'])
+# MAGIC         plt.ylim(0, 500)
+# MAGIC         
+# MAGIC         plt.xlabel('Time')
+# MAGIC         plt.xticks(rotation=90)
+# MAGIC         plt.ylabel('Fatalities')
+# MAGIC         plt.title(adm1)
+# MAGIC         plt.show()
 
-def graph_it(long_df, wide_df, filter_col, sample=None):
-    cdf = pd.merge(long_df, wide_df.loc[:, filter_col], on='ADMIN1', how='left')
-    cdf = cdf[cdf[filter_col] == 1]
-    if sample != None:
-        adm1s = random.sample(list(cdf.ADMIN1.unique()), sample)
-        cdf = cdf[cdf.ADMIN1.isin(adm1s)]
-    
-    # Plotting the fatalities over time by country
-    for adm1 in cdf.ADMIN1.unique():
-        plt.figure(figsize=(30, 10))
-        adm1_data = cdf[cdf['ADMIN1'] == adm1]
-        adm1_data = adm1_data.sort_values('STARTDATE')
-        plt.plot(adm1_data['STARTDATE'], adm1_data['FATALSUM'])
-        plt.ylim(0, 500)
-        
-        plt.xlabel('Time')
-        plt.xticks(rotation=90)
-        plt.ylabel('Fatalities')
-        plt.title(adm1)
-        plt.show()
+# COMMAND ----------
 
 graph_it(escalation_data, w, 'conflict_trend_1')
 
@@ -97,10 +120,12 @@ graph_it(escalation_data, w, 'conflict_trend_2')
 
 # COMMAND ----------
 
+# too many in this category - sample only 20
 graph_it(escalation_data, w, 'conflict_trend_3', 20)
 
 # COMMAND ----------
 
+# keep only some columns
 w = w[['prop_5','max_100','max_50','n_100', 'conflict_trend_1','conflict_trend_2']]
 w = w.reset_index()
 
@@ -113,4 +138,5 @@ w = spark.createDataFrame(w)
 # COMMAND ----------
 
 # save in delta lake
-w.write.mode('append').format('delta').saveAsTable("{}.{}".format(DATABASE_NAME, OUTPUT_DATA_TABLE))
+# this will write if the table does not exist, but throw an error if it does exist
+w.write.mode('errorifexists').format('delta').saveAsTable("{}.{}".format(DATABASE_NAME, ACLED_CONFL_TREND_TABLE))
