@@ -89,7 +89,7 @@ lag = pd.DataFrame()
 
 for CO, CO_ACLED_NO in COUNTRY_KEYS.items():
     # query data to one country
-    df = get_one_co_data(df_all, CO_ACLED_NO, 'ACLED_Admin1')
+    df = get_one_co_data(df_all, CO_ACLED_NO, 'ACLED_Admin1', 'TimeFK_Event_Date')
 
     # data_start_date: where to start the data (beginning of the lags), 
     # # # calculate by multiplying num_lags and INTERVAL and subtracting from where to start the feature set 

@@ -1,3 +1,4 @@
+import datetime as dt
 from pyspark.sql import SparkSession
 from pyspark.dbutils import DBUtils
 
@@ -25,12 +26,29 @@ def get_all_acled():
         )
     return df_all
 
-def get_one_co_data(df, cnty_code, admin_col):
+
+def get_one_co_data(df, cnty_code, admin_col='ACLED_Admin1', time_col='TimeFK_Event_Date'):
     # sudan country code - filter first before converting to pandas
     df = df.filter(df.CountryFK==cnty_code)
     df = df.toPandas()
     # convert admin to category - make sure admins are not left out in groupby
     df[admin_col] = df[admin_col].astype('category')
     # create year-month column
-    df['TimeFK_Event_Date'] = df['TimeFK_Event_Date'].apply(lambda x: dt.datetime.strptime(str(x),'%Y%m%d'))    
+    df[time_col] = df[time_col].apply(lambda x: dt.datetime.strptime(str(x),'%Y%m%d'))    
+    return df
+
+
+def get_cnty_date_data(df, cnty_codes, start_date, end_date, admin_col='ACLED_Admin1', time_col='TimeFK_Event_Date'):
+    # Filter by country
+    df = df.filter(df.CountryFK.isin(cnty_codes))
+    # drop columns difficult to convert
+    df = df.drop(*['ACLED_Latitude', 'ACLED_Longitude'])
+    # Convert to pandas dataframe
+    df = df.toPandas()
+    # Convert admin to category
+    df[admin_col] = df[admin_col].astype('category')
+    # Create year-month column
+    df[time_col] = df[time_col].apply(lambda x: dt.datetime.strptime(str(x), '%Y%m%d'))
+    # filter dates 
+    df = df[(df[time_col] >= start_date) & (df[time_col] < end_date)]
     return df

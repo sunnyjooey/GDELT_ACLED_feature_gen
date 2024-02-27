@@ -101,7 +101,7 @@ lag = pd.DataFrame()
 
 for CO, CO_ACLED_NO in COUNTRY_KEYS.items():
     # query data to one country
-    df = get_one_co_data(df_all, CO_ACLED_NO, 'ACLED_Admin1')
+    df = get_one_co_data(df_all, CO_ACLED_NO, 'ACLED_Admin1', 'TimeFK_Event_Date')
     # get all lagged features
     d = make_lagged_features(df, N_LAGS, 'TimeFK_Event_Date', INTERVAL, data_start_date, data_end_date, 'ACLED_Admin1', 'ACLED_Event_Type', 'ACLED_Fatalities', 'sum')
     d = d.sort_values('TimeFK_Event_Date')
