@@ -36,6 +36,8 @@ GEO_POP_DENSE_TABLE = 'geo_popdense_2020_static_gld'
 GEO_POP_DENSE_AGESEX_TABLE = 'geo_popdense_agesex_2020_static_gld'
 # OUTCOME
 ACLED_OUTCOME_TABLE = ''
+# FOR MODELING
+MODEL_TABLE_NAME = ''
 
 
 ##### define countries

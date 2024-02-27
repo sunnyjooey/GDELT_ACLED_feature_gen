@@ -1,31 +1,33 @@
 # Databricks notebook source
+# MAGIC %md
+# MAGIC This notebook is not yet re-organized!
+
+# COMMAND ----------
+
+# import libraries
 import numpy as np
 import pandas as pd
 import datetime as dt
-
-from pyspark.sql.functions import date_format, col
 from functools import reduce
 
-# COMMAND ----------
-
-DATABASE_NAME = 'news_media'
-
-# CHANGE ME!!
-MODEL_TABLE_NAME = 'horn_africa_model_escbin_emb_confhist_lag_m41_gld'
-
-EMB_TABLE_NAME = 'horn_africa_gdelt_gsgembed_1w_a1_8020_lag4_slv'
-ACLED_TABLE_NAME = 'horn_africa_acled_sumfat_1w_slv'
-GEO_STATIC_TABLE_NAME = 'horn_africa_geo_popdens2020_static_slv'
-TREND_STATIC_TABLE_NAME = 'horn_africa_acled_conftrend_static_ct1_slv'
-OUTCOME_TABLE_NAME = 'horn_africa_acled_outcome_fatal_escbin_1w_pct_v2_slv'
+from pyspark.sql.functions import date_format, col
 
 # COMMAND ----------
 
-out = spark.sql(f"SELECT * FROM {DATABASE_NAME}.{OUTCOME_TABLE_NAME}")
-conf = spark.sql(f"SELECT * FROM {DATABASE_NAME}.{ACLED_TABLE_NAME}")
-emb = spark.sql(f"SELECT * FROM {DATABASE_NAME}.{EMB_TABLE_NAME}")
-geo = spark.sql(f"SELECT * FROM {DATABASE_NAME}.{GEO_STATIC_TABLE_NAME}")
-trend = spark.sql(f"SELECT * FROM {DATABASE_NAME}.{TREND_STATIC_TABLE_NAME}")
+# import variables
+import sys
+sys.path.append('../util')
+
+from db_table import START_DATE, END_DATE, DATABASE_NAME, MODEL_TABLE_NAME, GDELT_TITLE_FILL_TABLE, ACLED_CONFL_HIST_1_TABLE, ACLED_CONFL_TREND_TABLE, GEO_POP_DENSE_AGESEX_TABLE, ACLED_OUTCOME_TABLE
+
+# COMMAND ----------
+
+# read-in data
+out = spark.sql(f"SELECT * FROM {DATABASE_NAME}.{ACLED_OUTCOME_TABLE}")
+conf = spark.sql(f"SELECT * FROM {DATABASE_NAME}.{ACLED_CONFL_HIST_1_TABLE}")
+emb = spark.sql(f"SELECT * FROM {DATABASE_NAME}.{GDELT_TITLE_FILL_TABLE}")
+geo = spark.sql(f"SELECT * FROM {DATABASE_NAME}.{GEO_POP_DENSE_AGESEX_TABLE}")
+trend = spark.sql(f"SELECT * FROM {DATABASE_NAME}.{ACLED_CONFL_TREND_TABLE}")
 
 # COMMAND ----------
 
