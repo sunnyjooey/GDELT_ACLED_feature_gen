@@ -116,7 +116,7 @@ for batch in range(num_batches_date):
         except Exception as e:
             edf = pd.DataFrame({'date':[_date], 'data':['gsg_embed'], 'error':[str(e)]})
             spedf = spark.createDataFrame(edf, StructType(eschema))
-            spedf.write.mode('append').format('delta').saveAsTable("{}.{}".format(DATABASE_NAME, GDELT_ERROR_TABLE)
+            spedf.write.mode('append').format('delta').saveAsTable("{}.{}".format(DATABASE_NAME, GDELT_ERROR_TABLE))
             print(f'#### FAILED AT {date} - ####')
 
     # reset index

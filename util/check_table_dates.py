@@ -1,4 +1,9 @@
 # Databricks notebook source
+# MAGIC %md
+# MAGIC ### Check dates in tables
+
+# COMMAND ----------
+
 import pyspark.sql.functions as F
 from db_table import DATABASE_NAME
 
@@ -55,3 +60,18 @@ for TAB in tables:
         else:
             print("TABLE", table_name, "has no known data colum.")
             print()
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ### Check the weekday of a date
+# MAGIC Note: 0 is Monday
+
+# COMMAND ----------
+
+import datetime as dt
+dt.date(2023, 5, 15).weekday()
+
+# COMMAND ----------
+
+
