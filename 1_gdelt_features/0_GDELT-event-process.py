@@ -29,6 +29,7 @@ import sys
 sys.path.append('../util')
 
 from db_table import START_DATE, END_DATE, DATABASE_NAME, GDELT_EVENT_TABLE, GDELT_EVENT_PROCESS_TABLE, CAMEO_LST
+from util import get_all_acled
 
 # COMMAND ----------
 
@@ -77,30 +78,7 @@ gdf = gpd.read_file(co_dict[CO]['SHAPEFILE'])
 # COMMAND ----------
 
 # the outcome (ACLED) data
-
-from pyspark.sql import SparkSession
-from pyspark.dbutils import DBUtils
-
-spark = SparkSession.builder.getOrCreate()
-dbutils = DBUtils(spark)
-
-database_host = dbutils.secrets.get(scope='warehouse_scope', key='database_host')
-database_port = dbutils.secrets.get(scope='warehouse_scope', key='database_port')
-user = dbutils.secrets.get(scope='warehouse_scope', key='user')
-password = dbutils.secrets.get(scope='warehouse_scope', key='password')
-
-database_name = "UNDP_DW_CRD"
-table = "dbo.CRD_ACLED"
-url = f"jdbc:sqlserver://{database_host}:{database_port};databaseName={database_name};"
-
-d = (spark.read
-      .format("com.microsoft.sqlserver.jdbc.spark")
-      .option("url", url)
-      .option("dbtable", table)
-      .option("user", user)
-      .option("password", password)
-      .load()
-    )
+d = get_all_acled()
 
 # filter to sudan    
 d = d.filter((d['CountryFK'] == co_dict[CO]['CO_ACLED_NO']) & (d['TimeFK_Event_Date'] >= 20200101))
