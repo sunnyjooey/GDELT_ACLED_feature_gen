@@ -1,6 +1,10 @@
 # Databricks notebook source
 # MAGIC %md
-# MAGIC This notebook downloads the GDELT GSG embeddings data.
+# MAGIC **What**: This notebook downloads the GDELT GSG embeddings data. It is dependent on the Events dataset, so it must be run after the `0_Databricks_GDELT_Events_v2_download` notebook.  
+# MAGIC     
+# MAGIC **How**: Set the variables in `util/db_table.py`. Dates should already be set for the Events dataset download.  
+# MAGIC   
+# MAGIC **Note**: Run this notebook as a Job. It has a long compute time due to filtering and merging steps.
 
 # COMMAND ----------
 

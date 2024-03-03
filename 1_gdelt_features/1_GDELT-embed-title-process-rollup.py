@@ -1,4 +1,15 @@
 # Databricks notebook source
+# MAGIC %md
+# MAGIC **What**: This notebook creates concatenated texts of article titles ready for modeling. It is dependent on and must be run after the `0_GDELT-event-process` notebook. It will produce two datasets:  
+# MAGIC 1.`GDELT_TITLE_FILL_TABLE`, where only relevant admin 1 titles are used, and CO-wide titles are filled in only when there is no relevant admin 1 data.  
+# MAGIC 2.`GDELT_TITLE_CONCAT_TABLE`, where relevant admin 1 titles AND CO-wide titles are used, and CO-wide titles are used when there is no relevant admin 1 data.
+# MAGIC
+# MAGIC **How**: Set the variables in `util/db_table.py`. Dates should already be set for the Events dataset download.  
+# MAGIC   
+# MAGIC **Note**: Suggested to run this notebook as a Job.
+
+# COMMAND ----------
+
 import numpy as np
 import pandas as pd
 import datetime as dt

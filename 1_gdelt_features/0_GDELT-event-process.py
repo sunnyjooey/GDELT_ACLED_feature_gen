@@ -1,10 +1,14 @@
 # Databricks notebook source
 # MAGIC %md
-# MAGIC This notebook cleans the GDELT Events dataset.  
-# MAGIC 1. It harmonizes admin 1 names with those in ACLED.  
-# MAGIC 2. It filters event types (cameo codes).  
-# MAGIC 3. It stacks the Events dataset.  
-# MAGIC 4. It places each row in the Events dataset in an admin 1 using lat / lon coordinates (+some cleaning).  
+# MAGIC **What**: This notebook cleans and processes the GDELT Events dataset.
+# MAGIC 1. (Cleaning) It harmonizes admin 1 names with those in ACLED.  
+# MAGIC 2. (Filtering) It filters event types to root events and cameo codes.  
+# MAGIC 3. (Important processing) It stacks the Events dataset.  
+# MAGIC 4. (Cleaning) It places each row in the Events dataset in an admin 1 using lat / lon coordinates (+some cleaning).  
+# MAGIC
+# MAGIC **How**: Set the variables in `util/db_table.py`. Dates should already be set for the Events dataset download.  
+# MAGIC   
+# MAGIC **Note**: This notebook must be run once per country by designating the `CO` variable. Alternatively, run it as a Job (once per country by stringing multiple Job Tasks together) and pass in the `CO` variable as an argument.
 
 # COMMAND ----------
 

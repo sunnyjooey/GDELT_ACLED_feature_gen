@@ -1,11 +1,12 @@
 # Databricks notebook source
-# MAGIC %md
-# MAGIC ### Check dates in tables
+import datetime as dt
+import pyspark.sql.functions as F
+from db_table import DATABASE_NAME, GDELT_ERROR_TABLE, GDELT_EVENT_TABLE, GDELT_EMBED_TABLE
 
 # COMMAND ----------
 
-import pyspark.sql.functions as F
-from db_table import DATABASE_NAME
+# MAGIC %md
+# MAGIC ### Check dates in tables
 
 # COMMAND ----------
 
@@ -64,8 +65,69 @@ for TAB in tables:
 # COMMAND ----------
 
 # MAGIC %md
+# MAGIC ### Check number of rows in data
+
+# COMMAND ----------
+
+# dates to check in between
+CHECK_START = '2023-03-01'
+CHECK_END = '2023-07-03'
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ##### Events data table
+
+# COMMAND ----------
+
+# read in and filter to date
+df = spark.sql(f"SELECT * FROM {DATABASE_NAME}.{GDELT_EVENT_TABLE};")
+df = df.withColumn('DATEADDED', F.to_timestamp('DATEADDED', format='yyyyMMddHHmmss'))
+df = df.withColumn('DATEADDED', F.to_date('DATEADDED'))
+df_sub = df.filter((df['DATEADDED'] >= dt.datetime.strptime(CHECK_START, '%Y-%m-%d').date()) & (df['DATEADDED'] < dt.datetime.strptime(CHECK_END, '%Y-%m-%d').date()))
+
+# groupby and count by date
+df_sub = df_sub.groupBy('DATEADDED').count().orderBy('DATEADDED')
+
+# COMMAND ----------
+
+display(df_sub)
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ##### Embeddings data table
+
+# COMMAND ----------
+
+# read in and filter to date
+df = spark.sql(f"SELECT * FROM {DATABASE_NAME}.{GDELT_EMBED_TABLE};")
+df = df.withColumn('date', F.regexp_replace('date', 'T', ' '))
+df = df.withColumn('date', F.regexp_replace('date', 'Z', ''))
+df = df.withColumn('date', F.to_timestamp('date', format='yyyy-MM-dd HH:mm:ss'))
+df = df.withColumn('date', F.to_date('date'))
+df_sub = df.filter((df['date'] >= dt.datetime.strptime(CHECK_START, '%Y-%m-%d').date()) & (df['date'] < dt.datetime.strptime(CHECK_END, '%Y-%m-%d').date()))
+
+# groupby and count by date
+df_sub1 = df_sub.groupBy('date').count().orderBy('date')
+
+# drop duplicates in url and do another groupby count
+df_sub2 = df_sub.orderBy('date').coalesce(1).dropDuplicates(subset = ['url'])
+df_sub2 = df_sub2.groupBy('date').count().orderBy('date')
+
+# COMMAND ----------
+
+display(df_sub1)
+
+# COMMAND ----------
+
+display(df_sub2)
+
+# COMMAND ----------
+
+# MAGIC %md
 # MAGIC ### Check the weekday of a date
-# MAGIC Note: 0 is Monday
+# MAGIC Note: `0` is Monday
 
 # COMMAND ----------
 

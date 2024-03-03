@@ -1,6 +1,10 @@
 # Databricks notebook source
 # MAGIC %md
-# MAGIC This notebook can be used to do PCA on the embeddings data (particularly the lagged data with too many columns). Note that there is no date querying. For now, conduct PCA on the full data. For later, make functions to save PCA models and apply on incoming data. Note, table names (for outputs) are defined within the notebook instead of in `db_table`. The writes to the data lake will not append; it will write if the table does not exist, but throw an error if the table does exist.
+# MAGIC **What**: This notebook creates PCA data ready for modeling from embeddings data. It is most appropriate for data with many variables, so run after notebook `2_GDELT-embed-process-lag`. 
+# MAGIC
+# MAGIC **How**: Set the variables in util/db_table.py. 
+# MAGIC
+# MAGIC **Note**: Note that there is no date querying. For now, conduct PCA on the full data. For later, make functions to save PCA models and apply on incoming data. For this reason, table names (for outputs) are defined within the notebook instead of in `db_table`. The writes to the data lake will not append; it will write if the table does not exist, but throw an error if the table does exist.
 
 # COMMAND ----------
 

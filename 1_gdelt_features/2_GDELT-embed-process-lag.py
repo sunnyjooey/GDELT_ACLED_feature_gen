@@ -1,6 +1,9 @@
 # Databricks notebook source
 # MAGIC %md
-# MAGIC Notebook for lagging embed variables
+# MAGIC **What**: This notebook creates lagged embeddings variables ready for modeling (or PCA). It must be run after the 
+# MAGIC `1_GDELT-embed-process-rollup` notbook. Designate the number of lags through the `N_LAGS` variable.
+# MAGIC
+# MAGIC **How**: Set the variables in `util/db_table.py`. Dates should already be set for the Events dataset download.  
 
 # COMMAND ----------
 

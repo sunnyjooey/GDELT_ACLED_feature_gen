@@ -1,4 +1,13 @@
 # Databricks notebook source
+# MAGIC %md
+# MAGIC **What**: This notebook creates an averaged embeddings dataset ready for modeling (or lagging or PCA). It is dependent on and must be run after the `0_GDELT-event-process` notebook. Designate the time period for averaging in number of weeks and the weight to be given the admin 1 level data (the countrywide data will be weighted 1 - admin%)
+# MAGIC
+# MAGIC **How**: Set the variables in `util/db_table.py`. Dates should already be set for the Events dataset download.  
+# MAGIC   
+# MAGIC **Note**: Run this notebook as a Job as it takes a lot of compute resources to run.
+
+# COMMAND ----------
+
 import numpy as np
 import pandas as pd
 import datetime as dt

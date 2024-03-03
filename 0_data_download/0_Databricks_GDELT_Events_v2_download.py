@@ -1,6 +1,10 @@
 # Databricks notebook source
 # MAGIC %md
-# MAGIC This notebook downloads the GDELT Events (v2) datasets.
+# MAGIC **What**: This notebook downloads the GDELT Events (v2) dataset.  
+# MAGIC   
+# MAGIC **How**: Set the variables in `util/db_table.py`, paying particular attention to `START_DATE` and `END_DATE` (both must be a Monday)  
+# MAGIC   
+# MAGIC **Note**: Run this notebook as a Job if downloading more than one month's data.
 
 # COMMAND ----------
 
