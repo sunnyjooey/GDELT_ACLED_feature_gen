@@ -8,7 +8,7 @@
 # MAGIC
 # MAGIC **How**: Set the variables in `util/db_table.py`. Dates should already be set for the Events dataset download.  
 # MAGIC   
-# MAGIC **Note**: This notebook must be run once per country by designating the `CO` variable. Alternatively, run it as a Job (once per country by stringing multiple Job Tasks together) and pass in the `CO` variable as an argument.
+# MAGIC **Note**: This notebook must be run once per country by designating the `CO` variable. Alternatively, run it as a Job (once per country by stringing multiple Job Tasks together) and pass in the `CO` variable as an argument. On 42 GB 12 core Job cluster, all eight countries for 7 weeks of data took about 21 minutes to run.
 
 # COMMAND ----------
 
@@ -39,12 +39,20 @@ from util import get_all_acled
 
 # country code 
 # run one at a time to check all admin names are correct
-CO = 'UG'
+# CO = 'UG'
 
-# # run as a job
-# spark = SparkSession.builder.getOrCreate()
-# dbutils = DBUtils(spark)
-# CO = dbutils.widgets.get("CO")
+# run as a job
+from pyspark.sql import SparkSession
+from pyspark.dbutils import DBUtils
+spark = SparkSession.builder.getOrCreate()
+dbutils = DBUtils(spark)
+CO = dbutils.widgets.get("CO")
+
+# COMMAND ----------
+
+# sanity check in job run
+print(START_DATE, '-', END_DATE)
+print(CO)
 
 # COMMAND ----------
 

@@ -6,7 +6,7 @@
 # MAGIC
 # MAGIC **How**: Set the variables in `util/db_table.py`. Dates should already be set for the Events dataset download.  
 # MAGIC   
-# MAGIC **Note**: Suggested to run this notebook as a Job.
+# MAGIC **Note**: No need to run as a Job. 70 GB 20 core Job cluster takes about 10 minutes to process 9 weeks of data.
 
 # COMMAND ----------
 
@@ -24,7 +24,7 @@ from pyspark.sql.types import StringType
 import sys
 sys.path.append('../util')
 
-from db_table import START_DATE, END_DATE, DATABASE_NAME, GDELT_EMBED_TABLE, GDELT_TITLE_FILL_TABLE, GDELT_TITLE_CONCAT_TABLE, N_WEEK, COUNTRY_CODES
+from db_table import START_DATE, END_DATE, DATABASE_NAME, GDELT_EMBED_TABLE, GDELT_EVENT_PROCESS_TABLE, GDELT_TITLE_FILL_TABLE, GDELT_TITLE_CONCAT_TABLE, N_WEEK, COUNTRY_CODES
 
 # COMMAND ----------
 
@@ -33,6 +33,12 @@ n_week = f"{N_WEEK} week"
 
 # IMPORTANT - rollups are from Monday - Sunday
 # for best results, START_DATE and END_DATE should both be a Monday (weekday = 0)
+
+# COMMAND ----------
+
+# sanity check in job run
+print(START_DATE, '-', END_DATE)
+print(N_WEEK)
 
 # COMMAND ----------
 
@@ -58,7 +64,7 @@ print(emb.count())
 for CO in COUNTRY_CODES:
     # read in events data and filter to date range
     evtslv = spark.sql(f"SELECT * FROM {DATABASE_NAME}.{GDELT_EVENT_PROCESS_TABLE} WHERE COUNTRY=='{CO}'")
-    evtslv = evtslv.filter((evtslv['DATEADDED'] >= dt.datetime.strptime(start_date, '%Y-%m-%d').date()) & (evtslv['DATEADDED'] < dt.datetime.strptime(end_date, '%Y-%m-%d').date()))
+    evtslv = evtslv.filter((evtslv['DATEADDED'] >= dt.datetime.strptime(START_DATE, '%Y-%m-%d').date()) & (evtslv['DATEADDED'] < dt.datetime.strptime(END_DATE, '%Y-%m-%d').date()))
     # merge events and embeddings
     co = evtslv.join(emb, evtslv.SOURCEURL==emb.url, how='left')
     cols = ['DATEADDED', 'ADMIN1', 'COUNTRY', 'title'] 

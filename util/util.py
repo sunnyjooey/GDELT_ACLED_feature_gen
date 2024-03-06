@@ -30,6 +30,9 @@ def get_all_acled():
 def get_one_co_data(df, cnty_code, admin_col='ACLED_Admin1', time_col='TimeFK_Event_Date'):
     # sudan country code - filter first before converting to pandas
     df = df.filter(df.CountryFK==cnty_code)
+    # drop columns difficult to convert
+    df = df.drop(*['ACLED_Latitude', 'ACLED_Longitude'])
+    # Convert to pandas dataframe
     df = df.toPandas()
     # convert admin to category - make sure admins are not left out in groupby
     df[admin_col] = df[admin_col].astype('category')

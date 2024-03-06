@@ -1,6 +1,6 @@
 ##### define time 
 # dates: START_DATE and END_DATE must both be a Monday (weekday = 0)
-START_DATE = '2023-05-15'  # inclusive
+START_DATE = '2023-05-01'  # inclusive
 END_DATE = '2023-07-03'  # exclusive: download does not include this day 
 # number of weeks to aggregate
 N_WEEK = 1
@@ -19,7 +19,7 @@ GDELT_EMBED_TABLE = 'gdelt_embed_brz'
 # GDELT SLV (processed - intermediate)
 GDELT_EVENT_PROCESS = 'gdelt_events_cameo1'
 GDELT_EVENT_PROCESS_TABLE = f'{GDELT_EVENT_PROCESS}_slv'
-GDELT_EMBED_PROCESS_TABLE = ''
+GDELT_EMBED_PROCESS_TABLE = f'gdelt_embed_cameo1_{N_WEEK}w_8020_slv'
 GDELT_SCRAPED_TEXT_TABLE = f'{GDELT_EVENT_PROCESS}_scraped_text_slv'
 # GDELT GLD (final - for modeling)
 GDELT_EMBED_PROCESS_LAG_TABLE = GDELT_EMBED_PROCESS_TABLE.replace('_slv', f'{N_LAGS}lags_gld')

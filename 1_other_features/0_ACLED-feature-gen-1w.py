@@ -1,7 +1,11 @@
 # Databricks notebook source
 # MAGIC %md
-# MAGIC Notebook for generating ACLED lagged conflict history features at 1 week intervals   
-# MAGIC Includes only `sum-deaths` features
+# MAGIC **What**: Notebook for generating ACLED lagged conflict history features at 1 week intervals. Includes only `sum-deaths` features.  
+# MAGIC   
+# MAGIC **How**: Set the variables in util/db_table.py. Dates should already be set for the Events dataset download.
+# MAGIC   
+# MAGIC **Note**: Within the notebook, it takes about 7 minutes to run on 9 weeks of data.
+# MAGIC
 
 # COMMAND ----------
 
@@ -84,16 +88,13 @@ def make_lagged_features(df, num_lags, date_col, freq, data_start_date, data_end
 
 # COMMAND ----------
 
-# calculate ACLED data start and end date to query
-start_date = START_DATE.split('-')
-end_date = END_DATE.split('-')
-
+# # # calculate ACLED data start and end date to query
 # data_start_date: where to start the data (beginning of the lags)
 # # # if INTERVAL is 1 week, calculate by subtracting N_LAGS weeks from the start of the feature set (2019, 12, 30 in GDELT)
 # data_end_date: where to cut off the feature set
 nweeks = -1 * N_LAGS  # this needs to be changed if intervals and windows don't match (e.g. 2w interval, 1w sliding window)
-data_start_date = dt.datetime(int(start_date[0]), int(start_date[1]), int(start_date[2])) + dt.timedelta(weeks=nweeks)
-data_end_date = dt.datetime(int(end_date[0]), int(end_date[1]), int(end_date[2]))
+data_start_date = dt.datetime.strptime(START_DATE, '%Y-%m-%d') + dt.timedelta(weeks=nweeks)
+data_end_date = dt.datetime.strptime(END_DATE, '%Y-%m-%d')
 
 # COMMAND ----------
 

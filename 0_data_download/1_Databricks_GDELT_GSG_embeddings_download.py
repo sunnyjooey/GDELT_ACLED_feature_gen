@@ -4,7 +4,7 @@
 # MAGIC     
 # MAGIC **How**: Set the variables in `util/db_table.py`. Dates should already be set for the Events dataset download.  
 # MAGIC   
-# MAGIC **Note**: Run this notebook as a Job. It has a long compute time due to filtering and merging steps.
+# MAGIC **Note**: Run this notebook as a Job. It has a long compute time due to filtering and merging steps. On a 70 GB 20 core Job cluster, 7 weeks of data took about 2 hours to run.
 
 # COMMAND ----------
 
@@ -49,6 +49,7 @@ date_range = get_date_time_intervals(START_DATE, END_DATE)
 
 # exclude last time frame published at midnight for last 15 min from day before
 date_range = date_range[:-1]
+print(START_DATE, '-', END_DATE)
 print('Number of time intervals:', len(date_range))
 
 # COMMAND ----------

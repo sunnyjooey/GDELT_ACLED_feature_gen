@@ -1,6 +1,10 @@
 # Databricks notebook source
 import datetime as dt
 import pyspark.sql.functions as F
+
+# import variables
+import sys
+sys.path.append('../util')
 from db_table import DATABASE_NAME, GDELT_ERROR_TABLE, GDELT_EVENT_TABLE, GDELT_EMBED_TABLE
 
 # COMMAND ----------
@@ -122,6 +126,23 @@ display(df_sub1)
 # COMMAND ----------
 
 display(df_sub2)
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ##### Errors table
+
+# COMMAND ----------
+
+df = spark.sql(f"SELECT * FROM {DATABASE_NAME}.{GDELT_ERROR_TABLE};")
+df = df.withColumn('date', F.to_timestamp('date', format='yyyyMMddHHmmss'))
+df = df.withColumn('date', F.to_date('date'))
+df_sub = df.filter((df['date'] >= dt.datetime.strptime(CHECK_START, '%Y-%m-%d').date()) & (df['date'] < dt.datetime.strptime(CHECK_END, '%Y-%m-%d').date()))
+df_sub = df_sub.groupBy(['date','data']).count().orderBy('date')
+
+# COMMAND ----------
+
+display(df_sub)
 
 # COMMAND ----------
 

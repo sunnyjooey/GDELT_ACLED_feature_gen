@@ -1,7 +1,8 @@
 # Databricks notebook source
 # MAGIC %md
-# MAGIC Notebook for generating ACLED conflict history features with 2 week intervals and 1 week sliding windows  
+# MAGIC **What**: Notebook for generating ACLED conflict history features with 2 week intervals and 1 week sliding windows  
 # MAGIC Includes both `sum-deaths` and `time-since` features  
+# MAGIC   
 # MAGIC ***WARNING***: The start and end dates for querying ACLED data need to be manually calculated! It has not been functionalized!
 
 # COMMAND ----------
@@ -180,8 +181,8 @@ for CO, CO_ACLED_NO in COUNTRY_KEY.items():
     df = get_one_co_data(df_all, CO_ACLED_NO, 'ACLED_Admin1')
 
     # convert admin to category - make sure admins are not left out in groupby
-    s1 = get_time_since_df(df, [1, 5, 20], 'TimeFK_Event_Date', INTERVAL, 'ACLED_Admin1', 'ACLED_Event_Type', 'ACLED_Fatalities', dt.datetime(2011,1,1,0,0,0), dt.datetime(2023,5,1,0,0,0))
-    s2 = get_time_since_df(df, [1, 5, 20], 'TimeFK_Event_Date', INTERVAL, 'ACLED_Admin1', 'ACLED_Event_Type', 'ACLED_Fatalities', dt.datetime(2011,1,8,0,0,0), dt.datetime(2023,5,1,0,0,0))
+    s1 = get_time_since_df(df, [1, 5, 20], 'TimeFK_Event_Date', INTERVAL, 'ACLED_Admin1', 'ACLED_Event_Type', 'ACLED_Fatalities', dt.datetime(2011,1,1), dt.datetime(2023,5,1))
+    s2 = get_time_since_df(df, [1, 5, 20], 'TimeFK_Event_Date', INTERVAL, 'ACLED_Admin1', 'ACLED_Event_Type', 'ACLED_Fatalities', dt.datetime(2011,1,8), dt.datetime(2023,5,1))
     # make sure max is the same
     assert s1.max().max() == s2.max().max(), 'adjust start_time or end_time to make sure maxes match!'
 

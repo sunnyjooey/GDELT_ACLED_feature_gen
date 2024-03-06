@@ -4,7 +4,7 @@
 # MAGIC
 # MAGIC **How**: Set the variables in `util/db_table.py`. Dates should already be set for the Events dataset download.  
 # MAGIC   
-# MAGIC **Note**: Run this notebook as a Job as it takes a lot of compute resources to run.
+# MAGIC **Note**: Run this notebook as a Job as it takes a lot of compute resources to run. It takes a 126 GB 36 core Job cluster 6.5 hours to process 7 weeks of data.
 
 # COMMAND ----------
 
@@ -34,6 +34,12 @@ n_week = f"{N_WEEK} week"
 
 # IMPORTANT - rollups are from Monday - Sunday
 # for best results, START_DATE and END_DATE should both be a Monday (weekday = 0)
+
+# COMMAND ----------
+
+# sanity check in job run
+print(START_DATE, '-', END_DATE)
+print(N_WEEK)
 
 # COMMAND ----------
 

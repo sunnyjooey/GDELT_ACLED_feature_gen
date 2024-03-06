@@ -13,6 +13,11 @@ from db_table import START_DATE, END_DATE, DATABASE_NAME, GDELT_EVENT_PROCESS_TA
 
 # COMMAND ----------
 
+# sanity check in job run
+print(START_DATE, '-', END_DATE)
+
+# COMMAND ----------
+
 # readin embed data
 emb = spark.sql(f"SELECT * FROM {DATABASE_NAME}.{GDELT_EVENT_PROCESS_TABLE}")
 print(emb.count())

@@ -4,7 +4,7 @@
 # MAGIC   
 # MAGIC **How**: Set the variables in `util/db_table.py`, paying particular attention to `START_DATE` and `END_DATE` (both must be a Monday)  
 # MAGIC   
-# MAGIC **Note**: Run this notebook as a Job if downloading more than one month's data.
+# MAGIC **Note**: Run this notebook as a Job if downloading more than one month's data. On a 70 GB 20 core Job cluster, 7 weeks of data took about 17 minutes to run.
 
 # COMMAND ----------
 
@@ -47,6 +47,7 @@ date_range = get_date_time_intervals(START_DATE, END_DATE)
 
 # exclude last time frame published at midnight for last 15 min from day before
 date_range = date_range[:-1]
+print(START_DATE, '-', END_DATE)
 print('Number of time intervals:', len(date_range))
 
 # COMMAND ----------
