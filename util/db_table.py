@@ -26,14 +26,14 @@ GDELT_EMBED_PROCESS_LAG_TABLE = GDELT_EMBED_PROCESS_TABLE.replace('_slv', f'{N_L
 GDELT_TITLE_FILL_TABLE = f'{GDELT_EVENT_PROCESS}_title_fill_{N_WEEK}w_gld'
 GDELT_TITLE_CONCAT_TABLE = f'{GDELT_EVENT_PROCESS}_title_concat_{N_WEEK}w_gld'
 
-##### define more tables
-# ACLED
-ACLED_CONFL_HIST_1_TABLE = ''
-ACLED_CONFL_HIST_2_TABLE = ''
-ACLED_CONFL_TREND_TABLE = ''
+##### define more tables (for modeling)
+# ACLED 
+ACLED_CONFL_HIST_1_TABLE = 'acled_sumfat_1w_gld'
+#ACLED_CONFL_HIST_2_TABLE = 'acled_confhist_2w_gld'
+ACLED_CONFL_TREND_TABLE = 'acled_conftrend_static_ct1_gld'
 # GEO-SPATIAL
-GEO_POP_DENSE_TABLE = 'geo_popdense_2020_static_gld'
 GEO_POP_DENSE_AGESEX_TABLE = 'geo_popdense_agesex_2020_static_gld'
+#GEO_POP_DENSE_TABLE = 'geo_popdense_2020_static_gld'
 # OUTCOME
 ACLED_OUTCOME_TABLE = ''
 # FOR MODELING
@@ -45,4 +45,4 @@ COUNTRY_CODES = ['SU', 'OD', 'ET', 'ER', 'DJ', 'SO', 'UG', 'KE']
 COUNTRY_KEYS = {'SU': 214, 'OD': 227, 'ET': 108, 'ER': 104, 'DJ': 97, 'SO': 224, 'UG': 235, 'KE': 175}
 
 ##### define cameo codes 
-CAMEO_LST = ['11','14','15','17','18','19','20']  # if no filter, set to None
+CAMEO_LST = ['11','14','15','17','18','19','20']  # if no cameo filtering, set to None

@@ -1,4 +1,13 @@
 # Databricks notebook source
+# MAGIC %md
+# MAGIC **What**: This notebook aggregates overall population density for each admin1. Source tiff files must be manually downloaded from WorldPop and uploaded to the DBFS. `2_Geo-feature-pop-dense-age-sex` is the *preferred alternative* to this notebook.  
+# MAGIC   
+# MAGIC **How**: After uploading the source tiff files, designate the location in `tiff_path` (as of March 2024, source files for 2020 are already in the DBFS). Shapefiles must be uploaded manually to the DBFS and the location must be designated in `shapefile_path` (as of March 2024, shapefiles are already in the DBFS). Set other variables in `util/db_table.py`. There are no associated dates because this produces static instead of time-series features.   
+# MAGIC   
+# MAGIC **Note**: This notebook does not take long to run.
+
+# COMMAND ----------
+
 !pip install rasterio
 !pip install fiona
 !pip install geopandas

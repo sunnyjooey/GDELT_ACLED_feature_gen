@@ -1,7 +1,6 @@
 # Databricks notebook source
 # MAGIC %md
-# MAGIC **What**: Notebook for generating ACLED conflict history features with 2 week intervals and 1 week sliding windows  
-# MAGIC Includes both `sum-deaths` and `time-since` features  
+# MAGIC **What**: Notebook for generating ACLED conflict history features with 2 week intervals and 1 week sliding windows. Includes both `sum-deaths` and `time-since` features. `0_ACLED-feature-gen-1w` is the *preferred alternative* to this one.  
 # MAGIC   
 # MAGIC ***WARNING***: The start and end dates for querying ACLED data need to be manually calculated! It has not been functionalized!
 

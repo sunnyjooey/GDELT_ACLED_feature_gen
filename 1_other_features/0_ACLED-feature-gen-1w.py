@@ -1,8 +1,8 @@
 # Databricks notebook source
 # MAGIC %md
-# MAGIC **What**: Notebook for generating ACLED lagged conflict history features at 1 week intervals. Includes only `sum-deaths` features.  
+# MAGIC **What**: Notebook for generating ACLED lagged conflict history features at 1 week intervals. Includes only `sum-deaths` features. `0_ACLED-feature-gen-2w` is an alternative to this notebook, but *this notebook is the the preferred one*. 
 # MAGIC   
-# MAGIC **How**: Set the variables in util/db_table.py. Dates should already be set for the Events dataset download.
+# MAGIC **How**: Set the variables in `util/db_table.py`. Dates should already be set for the Events dataset download.
 # MAGIC   
 # MAGIC **Note**: Within the notebook, it takes about 7 minutes to run on 9 weeks of data.
 # MAGIC

@@ -1,6 +1,6 @@
 # Databricks notebook source
 # MAGIC %md
-# MAGIC This notebook downloads global age-sex disaggregated tiff files from World Pop.
+# MAGIC **Note**: This notebook downloads global age-sex disaggregated tiff files from WorldPop. Set the `FILE_PATH` to a location in the DBFS before running the notebook. `2_Geo-feature-pop-dense-age-sex` notebok is dependent on this notebook.
 
 # COMMAND ----------
 

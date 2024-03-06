@@ -1,7 +1,8 @@
 # Databricks notebook source
 # MAGIC %md
-# MAGIC This notebook is meant to be used to experiment / do visual checks. It is NOT meant to be automated in a job. Save only the table meant to be used in the modeling.    
-# MAGIC Future: create this feature on a rolling basis. Currently, there is some backward leakage because the static variable is based on trends during the whole outcome duration.
+# MAGIC **What**: This notebook is meant to be used to experiment / do visual checks. It is NOT meant to be run as-is or automated in a Job. Save only the table meant to be used in the modeling.   
+# MAGIC    
+# MAGIC **Future**: Create this feature on a rolling basis. Currently, there is some backward leakage because the static variable is based on trends during the whole outcome duration.
 
 # COMMAND ----------
 
@@ -18,12 +19,6 @@ import sys
 sys.path.append('../util')
 
 from db_table import DATABASE_NAME, ACLED_OUTCOME_TABLE, ACLED_CONFL_TREND_TABLE
-
-# COMMAND ----------
-
-DATABASE_NAME = 'news_media'
-ACLED_OUTCOME_TABLE = 'horn_africa_acled_outcome_fatal_escbin_1w_pct_slv'
-ACLED_CONFL_TREND_TABLE = 'horn_africa_acled_conftrend_static_ct1_slv'
 
 # COMMAND ----------
 

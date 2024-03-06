@@ -1,4 +1,13 @@
 # Databricks notebook source
+# MAGIC %md
+# MAGIC **What**: This notebook aggregates population density by *gender* and *age groups 0-14, 15-64, 65+* for each admin1. It is dependent on `geo_util/age_sex_structure_download_source`, which downloads all source files from WorldPop. `2_Geo-feature-pop-dense-overall` is an alternative to this notebook, but *this notebook is the the preferred one*.  
+# MAGIC   
+# MAGIC **How**: If source tiff files are missing, run `geo_util/age_sex_structure_download_source`, and designate their location in `tiff_path` (as of March 2024, all source files for 2020 are already in DBFS). Shapefiles must be uploaded manually to the DBFS and the location must be designated in `shapefile_path` (as of March 2024, shapefiles are already in the DBFS). Set other variables in `util/db_table.py`. There are no associated dates because this produces static instead of time-series features.    
+# MAGIC   
+# MAGIC **Note**: Suggested to run as a Job. It takes a 126 GB 36 core Job cluster about 50 minutes to run.
+
+# COMMAND ----------
+
 !pip install fiona
 !pip install rasterio
 !pip install rasterstats
