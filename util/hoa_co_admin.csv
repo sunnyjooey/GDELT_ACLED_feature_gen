@@ -1,0 +1,255 @@
+COUNTRY,ADMIN1
+DJ,Ali Sabieh
+DJ,Arta
+DJ,Dikhil
+DJ,Djibouti
+DJ,Obock
+DJ,Tadjourah
+ER,Anseba
+ER,Debub
+ER,Debubawi Keih Bahri
+ER,Gash Barka
+ER,Maekel
+ER,Semienawi Keih Bahri
+ET,Addis Ababa
+ET,Afar
+ET,Amhara
+ET,Benshangul/Gumuz
+ET,Dire Dawa
+ET,Gambela
+ET,Harari
+ET,Oromia
+ET,SNNP
+ET,Sidama
+ET,Somali
+ET,South West
+ET,Tigray
+KE,Baringo
+KE,Bomet
+KE,Bungoma
+KE,Busia
+KE,Elgeyo Marakwet
+KE,Embu
+KE,Garissa
+KE,Homa Bay
+KE,Isiolo
+KE,Kajiado
+KE,Kakamega
+KE,Kericho
+KE,Kiambu
+KE,Kilifi
+KE,Kirinyaga
+KE,Kisii
+KE,Kisumu
+KE,Kitui
+KE,Kwale
+KE,Laikipia
+KE,Lamu
+KE,Machakos
+KE,Makueni
+KE,Mandera
+KE,Marsabit
+KE,Meru
+KE,Migori
+KE,Mombasa
+KE,Muranga
+KE,Nairobi
+KE,Nakuru
+KE,Nandi
+KE,Narok
+KE,Nyamira
+KE,Nyandarua
+KE,Nyeri
+KE,Samburu
+KE,Siaya
+KE,Taita Taveta
+KE,Tana River
+KE,Tharaka-Nithi
+KE,Trans Nzoia
+KE,Turkana
+KE,Uasin Gishu
+KE,Vihiga
+KE,Wajir
+KE,West Pokot
+OD,Central Equatoria
+OD,Eastern Equatoria
+OD,Jonglei
+OD,Lakes
+OD,Northern Bahr el Ghazal
+OD,Unity
+OD,Upper Nile
+OD,Warrap
+OD,Western Bahr el Ghazal
+OD,Western Equatoria
+SO,Awdal
+SO,Bakool
+SO,Banadir
+SO,Bari
+SO,Bay
+SO,Galgaduud
+SO,Gedo
+SO,Hiraan
+SO,Lower Juba
+SO,Lower Shabelle
+SO,Middle Juba
+SO,Middle Shabelle
+SO,Mudug
+SO,Nugaal
+SO,Sanaag
+SO,Sool
+SO,Togdheer
+SO,Woqooyi Galbeed
+SU,Abyei
+SU,Al Jazirah
+SU,Blue Nile
+SU,Central Darfur
+SU,East Darfur
+SU,Gedaref
+SU,Kassala
+SU,Khartoum
+SU,North Darfur
+SU,North Kordofan
+SU,Northern
+SU,Red Sea
+SU,River Nile
+SU,Sennar
+SU,South Darfur
+SU,South Kordofan
+SU,West Darfur
+SU,West Kordofan
+SU,White Nile
+UG,Abim
+UG,Adjumani
+UG,Agago
+UG,Alebtong
+UG,Amolatar
+UG,Amudat
+UG,Amuria
+UG,Amuru
+UG,Apac
+UG,Arua
+UG,Budaka
+UG,Bududa
+UG,Bugiri
+UG,Bugweri
+UG,Buhweju
+UG,Buikwe
+UG,Bukedea
+UG,Bukomansimbi
+UG,Bukwo
+UG,Bulambuli
+UG,Buliisa
+UG,Bundibugyo
+UG,Bunyangabu
+UG,Bushenyi
+UG,Busia
+UG,Butaleja
+UG,Butambala
+UG,Butebo
+UG,Buvuma
+UG,Buyende
+UG,Dokolo
+UG,Gomba
+UG,Gulu
+UG,Hoima
+UG,Ibanda
+UG,Iganga
+UG,Isingiro
+UG,Jinja
+UG,Kaabong
+UG,Kabale
+UG,Kabarole
+UG,Kaberamaido
+UG,Kagadi
+UG,Kakumiro
+UG,Kalaki
+UG,Kalangala
+UG,Kaliro
+UG,Kalungu
+UG,Kampala
+UG,Kamuli
+UG,Kamwenge
+UG,Kanungu
+UG,Kapchorwa
+UG,Kapelebyong
+UG,Karenga
+UG,Kasese
+UG,Kassanda
+UG,Katakwi
+UG,Kayunga
+UG,Kazo
+UG,Kibaale
+UG,Kiboga
+UG,Kibuku
+UG,Kikuube
+UG,Kiruhura
+UG,Kiryandongo
+UG,Kisoro
+UG,Kitagwenda
+UG,Kitgum
+UG,Koboko
+UG,Kole
+UG,Kotido
+UG,Kumi
+UG,Kwania
+UG,Kween
+UG,Kyankwanzi
+UG,Kyegegwa
+UG,Kyenjojo
+UG,Kyotera
+UG,Lamwo
+UG,Lira
+UG,Luuka
+UG,Luwero
+UG,Lwengo
+UG,Lyantonde
+UG,Madi Okollo
+UG,Manafwa
+UG,Maracha
+UG,Masaka
+UG,Masindi
+UG,Mayuge
+UG,Mbale
+UG,Mbarara
+UG,Mitooma
+UG,Mityana
+UG,Moroto
+UG,Moyo
+UG,Mpigi
+UG,Mubende
+UG,Mukono
+UG,Nabilatuk
+UG,Nakapiripirit
+UG,Nakaseke
+UG,Nakasongola
+UG,Namayingo
+UG,Namisindwa
+UG,Namutumba
+UG,Napak
+UG,Nebbi
+UG,Ngora
+UG,Ntoroko
+UG,Ntungamo
+UG,Nwoya
+UG,Obongi
+UG,Omoro
+UG,Otuke
+UG,Oyam
+UG,Pader
+UG,Pakwach
+UG,Pallisa
+UG,Rakai
+UG,Rubanda
+UG,Rubirizi
+UG,Rukiga
+UG,Rukungiri
+UG,Rwampara
+UG,Serere
+UG,Sheema
+UG,Sironko
+UG,Soroti
+UG,Ssembabule
+UG,Tororo
+UG,Wakiso
+UG,Yumbe
+UG,Zombo

@@ -35,7 +35,7 @@ ACLED_CONFL_TREND_TABLE = 'acled_conftrend_static_ct1_gld'
 GEO_POP_DENSE_AGESEX_TABLE = 'geo_popdense_agesex_2020_static_gld'
 #GEO_POP_DENSE_TABLE = 'geo_popdense_2020_static_gld'
 # OUTCOME
-ACLED_OUTCOME_TABLE = ''
+ACLED_OUTCOME_TABLE = 'acled_outcome_fatal_escbin_1w_gld'
 # FOR MODELING
 MODEL_TABLE_NAME = ''
 
