@@ -37,7 +37,7 @@ GEO_POP_DENSE_AGESEX_TABLE = 'geo_popdense_agesex_2020_static_gld'
 # OUTCOME
 ACLED_OUTCOME_TABLE = 'acled_outcome_fatal_escbin_1w_gld'
 # FOR MODELING
-MODEL_TABLE_NAME = ''
+MODEL_TABLE_NAME = 'cameo1_titlefill_sumfat_1w_popdense_conftrend_mod'
 
 
 ##### define countries

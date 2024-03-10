@@ -19,6 +19,37 @@ tables = spark.catalog.listTables(DATABASE_NAME)
 
 # COMMAND ----------
 
+# function to check if all continuous dates are in the data
+# works for both weekly and daily intervals of dates
+
+def check_all_dates(data, date_col, min_date, max_date):
+    # unique dates in data
+    dates_in_data = [row[date_col] for row in data.select(date_col).distinct().collect()]
+    num_dates = len(dates_in_data)
+
+    # weeks or days
+    diff = abs(((max_date - min_date) / 7).days - num_dates)
+    if diff > 2:
+        check_dates = [min_date + dt.timedelta(days=x) for x in range(num_dates)]
+    else:
+        check_dates = [min_date + dt.timedelta(weeks=x) for x in range(num_dates)]
+
+    # dates that should be in data but isn't
+    not_in_data = [str(x) for x in check_dates if x not in dates_in_data]
+    # incongruencies in dates like None or wrong start/end date
+    not_in_check = [str(x) for x in dates_in_data if x not in check_dates]
+    if len(not_in_data) > 0:
+        print('WARNING: the following dates should be but are not in the data:', not_in_data)
+    if len(not_in_check) > 0:
+        print('Warning: Check the following None or start/end date values:', not_in_check)
+    
+
+# COMMAND ----------
+
+# cycle through all tables in the database
+# check min and max dates
+# make sure all continuous dates are in the data
+
 for TAB in tables:
     table_name = TAB.name
     df = spark.sql(f"SELECT * FROM {DATABASE_NAME}.{table_name};")
@@ -29,6 +60,7 @@ for TAB in tables:
         df = df.withColumn('DATEADDED', F.to_date('DATEADDED'))
         min_date, max_date = df.select(F.min("DATEADDED"), F.max("DATEADDED")).first()
         print("TABLE", table_name, "goes from", min_date, "to", max_date)
+        check_all_dates(df, 'DATEADDED', min_date, max_date)
         print()
 
     # raw embedding data
@@ -39,6 +71,7 @@ for TAB in tables:
         df = df.withColumn('date', F.to_date('date'))
         min_date, max_date = df.select(F.min("date"), F.max("date")).first()
         print("TABLE", table_name, "goes from", min_date, "to", max_date)
+        check_all_dates(df, 'date', min_date, max_date)
         print()
     
     # no need to check error table
@@ -51,19 +84,23 @@ for TAB in tables:
         if 'DATEADDED' in cols:
             min_date, max_date = df.select(F.min("DATEADDED"), F.max("DATEADDED")).first()
             print("TABLE", table_name, "goes from", min_date, "to", max_date)
+            check_all_dates(df, 'DATEADDED', min_date, max_date)
             print()
         elif ('STARTDATE' in cols) and ('ENDDATE' in cols):
             min_date, max_date = df.select(F.min("STARTDATE"), F.max("STARTDATE")).first()
             print("TABLE", table_name, "STARTDATE goes from", min_date, "to", max_date)
+            check_all_dates(df, 'STARTDATE', min_date, max_date)
             min_date, max_date = df.select(F.min("ENDDATE"), F.max("ENDDATE")).first()
             print("TABLE", table_name, "ENDDATE goes from", min_date, "to", max_date)
+            check_all_dates(df, 'ENDDATE', min_date, max_date)
             print()
         elif 'STARTDATE' in cols:
             min_date, max_date = df.select(F.min("STARTDATE"), F.max("STARTDATE")).first()
             print("TABLE", table_name, "STARTDATE goes from", min_date, "to", max_date)
+            check_all_dates(df, 'STARTDATE', min_date, max_date)
             print()
         else:
-            print("TABLE", table_name, "has no known data colum.")
+            print("TABLE", table_name, "has no known data column.")
             print()
 
 # COMMAND ----------
@@ -153,7 +190,7 @@ display(df_sub)
 # COMMAND ----------
 
 import datetime as dt
-dt.date(2023, 5, 15).weekday()
+dt.date(2019, 12, 30).weekday()
 
 # COMMAND ----------
 

@@ -86,7 +86,6 @@ def group_process_data(data):
 
 # COMMAND ----------
 
-
 # Sum up ACLED fatalities by week (starting Monday) and admin1
 data = group_process_data(df)
 
@@ -108,6 +107,8 @@ d.drop('ADMIN1_CO', axis=1, inplace=True)
 da = pd.merge(d, data, how='left')
 # fill na with 0 since there were no fatalities in those weeks
 da['FATALSUM'] = da['FATALSUM'].fillna(0)
+# change to date object
+da['STARTDATE'] = da['STARTDATE'].apply(lambda x: x.date())
 
 # COMMAND ----------
 
