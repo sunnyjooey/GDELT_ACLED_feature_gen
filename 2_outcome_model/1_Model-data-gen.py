@@ -1,6 +1,8 @@
 # Databricks notebook source
 # MAGIC %md
-# MAGIC ***README: Note on Dates***  
+# MAGIC **What**: This notebook merges several feature datasets and outcome dataset to create a dataset ready for modeling.  
+# MAGIC
+# MAGIC ***Note on Dates***  
 # MAGIC All start and end dates are set to a MONDAY.  
 # MAGIC All start dates are inclusive, while end dates are exclusive. This also applies to datasets where end dates are implied and not explicitly stated.
 # MAGIC 1. **Outcome data**
