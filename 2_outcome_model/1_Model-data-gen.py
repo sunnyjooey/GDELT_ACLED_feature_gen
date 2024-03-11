@@ -27,7 +27,8 @@
 # MAGIC 1. *Lagged* data and Outcome data: merge on `STARTDATE`  
 # MAGIC 2. *Un-lagged* data and Outcome data: merge on un-lagged data's `ENDDATE` with outcome data's `STARTDATE`.
 # MAGIC
-# MAGIC See this diagram for explanation
+# MAGIC See this diagram for explanation  
+# MAGIC ![time_interval](/time_interval_diagram.png)
 
 # COMMAND ----------
 
