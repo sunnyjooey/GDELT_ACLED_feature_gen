@@ -113,7 +113,6 @@ lag = lag.rename(columns={'TimeFK_Event_Date':'STARTDATE', 'ACLED_Admin1':'ADMIN
 
 # COMMAND ----------
 
-lag['STARTDATE'] = lag['STARTDATE'].astype(str)
 mrg = lag.copy()
 # data cleaning - these admin 1 don't exist anymore
 mrg = mrg.loc[~((mrg['COUNTRY']=='SU') & (mrg['ADMIN1'].isin(['Bahr el Ghazal', 'Equatoria', 'Upper Nile']))), :] 
