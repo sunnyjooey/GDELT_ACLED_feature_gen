@@ -106,16 +106,14 @@ for CO in COUNTRY_CODES:
     m_fill = m_fill.withColumn('COUNTRY', F.lit(CO))
     m_fill = m_fill.select('STARTDATE_', 'ENDDATE_', 'c.ADMIN1', 'COUNTRY', 'TITLE')
     m_fill = m_fill.toDF('STARTDATE', 'ENDDATE', 'ADMIN1', 'COUNTRY', 'TITLE')
+    m_fill = m_fill.where(F.col('STARTDATE').isNotNull())
 
     m = m.withColumn('COUNTRY', F.lit(CO))
     m = m.select('STARTDATE_', 'ENDDATE_', 'c.ADMIN1', 'COUNTRY', 'TITLE')
     m = m.toDF('STARTDATE', 'ENDDATE', 'ADMIN1', 'COUNTRY', 'TITLE')
+    m = m.where(F.col('STARTDATE').isNotNull())
 
     # save
     m_fill.write.mode('append').format('delta').saveAsTable("{}.{}".format(DATABASE_NAME, GDELT_TITLE_FILL_TABLE))
     m.write.mode('append').format('delta').saveAsTable("{}.{}".format(DATABASE_NAME, GDELT_TITLE_CONCAT_TABLE))
     print(CO, 'done')
-
-# COMMAND ----------
-
-
