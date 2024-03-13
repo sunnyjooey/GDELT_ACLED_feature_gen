@@ -1,7 +1,7 @@
 ##### define time 
 # dates: START_DATE and END_DATE must both be a Monday (weekday = 0)
-START_DATE = '2023-05-01'  # inclusive
-END_DATE = '2023-07-03'  # exclusive: download does not include this day 
+START_DATE = '2019-12-30'  # inclusive
+END_DATE = '2023-05-01'  # exclusive: download does not include this day 
 # number of weeks to aggregate
 N_WEEK = 1
 # number of lags
@@ -9,7 +9,7 @@ N_LAGS = 4
 
 
 ##### define database
-DATABASE_NAME = 'horn_africa_forecast'
+DATABASE_NAME = 'horn_africa_forecast_test'
 
 ##### define tables
 # GDELT BRZ (raw)
@@ -28,7 +28,7 @@ GDELT_TITLE_CONCAT_TABLE = f'{GDELT_EVENT_PROCESS}_title_concat_{N_WEEK}w_gld'
 
 ##### define more tables (for modeling)
 # ACLED 
-ACLED_CONFL_HIST_1_TABLE = 'acled_sumfat_1w_gld'
+ACLED_CONFL_HIST_1_TABLE = 'acled_confhist_sumfat_1w_gld'
 #ACLED_CONFL_HIST_2_TABLE = 'acled_confhist_2w_gld'
 ACLED_CONFL_TREND_TABLE = 'acled_conftrend_static_ct1_gld'
 # GEO-SPATIAL
