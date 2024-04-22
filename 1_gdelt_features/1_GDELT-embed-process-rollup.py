@@ -4,7 +4,7 @@
 # MAGIC
 # MAGIC **How**: Set the variables in `util/db_table.py`. Dates should already be set for the Events dataset download.  
 # MAGIC   
-# MAGIC **Note**: Run this notebook as a Job as it takes a lot of compute resources to run. It takes a 126 GB 36 core Job cluster 6.5 hours to process 7 weeks of data.
+# MAGIC **Note**: It takes a 126 GB 36 core Job cluster about 1 hour to run, seemingly regardless of the number of months, but it is recommended to run in several month or yearly segments in case of errors.
 
 # COMMAND ----------
 
