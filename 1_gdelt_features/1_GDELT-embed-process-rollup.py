@@ -61,12 +61,13 @@ print(emb.count())
 
 # COMMAND ----------
 
+emb_num = 512
 # do one country at a time
 for CO in COUNTRY_CODES:
     # read in events data 
     evtslv = spark.sql(f"SELECT * FROM {DATABASE_NAME}.{GDELT_EVENT_PROCESS_TABLE} WHERE COUNTRY=='{CO}'")
     evtslv = evtslv.filter((evtslv['DATEADDED'] >= dt.datetime.strptime(START_DATE, '%Y-%m-%d').date()) & (evtslv['DATEADDED'] < dt.datetime.strptime(END_DATE, '%Y-%m-%d').date()))
-    # merge events and embeddings
+    # merge events and embeddings to get needed embeddings
     co = evtslv.join(emb, evtslv.SOURCEURL==emb.url, how='left')
     cols = ['DATEADDED', 'ADMIN1', 'COUNTRY'] + list(np.arange(512).astype(str))
     co = co.select(*cols)
@@ -74,48 +75,75 @@ for CO in COUNTRY_CODES:
     # groupby n week intervals
     co = co.groupBy(F.window(F.col("DATEADDED"), n_week, "1 week", "-3 day"), 'ADMIN1', 'COUNTRY').mean()
 
-    # parce out start and end time
+    # parse out start and end time from windows and rename columns
     co = co.withColumn('STARTDATE', F.to_date(co['window']['start']))
     co = co.withColumn('ENDDATE', F.to_date(co['window']['end']))
-    emb_cols = [f'avg({i})' for i in np.arange(512)]
+    emb_cols = [f'avg({i})' for i in np.arange(emb_num)]
     cols = ['STARTDATE', 'ENDDATE', 'ADMIN1', 'COUNTRY'] + emb_cols
     co = co.select(*cols)
 
     # split CO and admin data
     co_df = co.filter(co.ADMIN1==CO).select('STARTDATE', 'ENDDATE', 'ADMIN1', *emb_cols)
-    co_df = co_df.toDF(*[f'{c}_' for c in co_df.columns])
-    adm_df = co.filter(co.ADMIN1!=CO).select('STARTDATE', 'ADMIN1', *emb_cols)
-    # merge to create all combos of date and admin 1
-    co_df = co_df.withColumn('tmp_', F.lit(1))
-    adm = adm_df.select('ADMIN1').distinct()
-    adm = adm.withColumn('tmp', F.lit(1))
-    co_df = co_df.join(adm, co_df.tmp_==adm.tmp).drop('ADMIN1_', 'tmp_', 'tmp')
+    adm_df = co.filter(co.ADMIN1!=CO).select('STARTDATE', 'ENDDATE', 'ADMIN1', *emb_cols)
 
-    # CO data and admin data together into wiiiide table
-    m = co_df.alias('c').join(adm_df.alias('a'), (F.col('c.STARTDATE_')==F.col('a.STARTDATE')) & (F.col('c.ADMIN1')==F.col('a.ADMIN1')), how='outer')
-    # if admin is missing, fill in with CO data
-    for col in emb_cols:
-        m = m.withColumn(col, F.coalesce(col, f"{col}_"))
-    
-    # weighted average between admin and CO data
-    if adm_pct is not None:
-        co_pct = 1 - adm_pct
-        # cycle through admin data cols
-        for col in emb_cols:
-            # CO data col
-            co_col = f'{col}_'
-            # calculate weighted average
-            udfco = F.udf(lambda co: co * co_pct, DoubleType())
-            m = m.withColumn(co_col, udfco(m[co_col]))
-            udfadm = F.udf(lambda adm: adm * adm_pct, DoubleType())
-            m = m.withColumn(col, udfadm(m[col]))
-            udffin = F.udf(lambda co, adm: co + adm, DoubleType())
-            m = m.withColumn(col, udffin(m[co_col], m[col]))
-    
-    # cleaning
-    m = m.withColumn('COUNTRY', F.lit(CO))
-    m = m.select('STARTDATE_', 'ENDDATE_', 'c.ADMIN1', 'COUNTRY', *emb_cols)
-    m = m.toDF('STARTDATE', 'ENDDATE', 'ADMIN1', 'COUNTRY', *list(np.arange(512).astype(str)))
+    ### account for missing data at CO and admin1 levels ###
+    ### and proportionally combine the two ###
+    # merge to create all combos of admin 1
+    co_mini = adm_df.select('STARTDATE', 'ADMIN1')
+    adm_mini = co_mini.select('ADMIN1').distinct().toDF('ADMIN1_')
+    adm_mini = adm_mini.withColumn('tmp', F.lit(1))
+    co_mini = co_mini.withColumn('tmp_', F.lit(1))
+    combo_master = co_mini.join(adm_mini, co_mini.tmp_==adm_mini.tmp).drop('ADMIN1', 'tmp_', 'tmp')
+    combo_master = combo_master.toDF('STARTDATE_', 'ADMIN1_')
+
+    # by startdate, which admin1 and CO has data
+    co_mini = co_mini.drop('tmp_')
+    keep_master = combo_master.join(co_mini, (combo_master.STARTDATE_==co_mini.STARTDATE) & (combo_master.ADMIN1_==co_mini.ADMIN1), how='outer')
+    co_mini = co_df.select('STARTDATE').toDF('STARTDATE__')
+    keep_master = co_mini.join(keep_master, co_mini.STARTDATE__==keep_master.STARTDATE_, how='outer')
+    keep_master = keep_master.distinct()
+
+    # startdates with CO and admin1 data - m1
+    co_adm = keep_master.filter((keep_master.STARTDATE__.isNotNull()) & (keep_master.STARTDATE.isNotNull()))
+    # startdates with only CO and no admin1 data - m2
+    co_only = keep_master.filter((keep_master.STARTDATE__.isNotNull()) & (keep_master.STARTDATE.isNull()))
+    # startdates with no CO and only admin1 data - m3
+    adm_only = keep_master.filter((keep_master.STARTDATE__.isNull()) & (keep_master.STARTDATE.isNotNull()))
+
+    ## startdates with no CO and only admin1 data - adm_only
+    m3 = adm_only.select('STARTDATE','ADMIN1').join(adm_df, on=['STARTDATE','ADMIN1'], how='left').select('STARTDATE','ENDDATE','ADMIN1',*emb_cols)
+    m3 = m3.toDF('STARTDATE','ENDDATE','ADMIN1',*list(np.arange(emb_num).astype(str)))
+
+    ## startdates with only CO and no admin1 data - co_only
+    co_only = co_only.select('STARTDATE_', 'ADMIN1_')
+    m2 = co_only.join(co_df, co_only.STARTDATE_==co_df.STARTDATE).select('STARTDATE','ENDDATE','ADMIN1_', *emb_cols)
+    m2 = m2.toDF('STARTDATE','ENDDATE','ADMIN1',*list(np.arange(emb_num).astype(str)))
+
+    ## startdates with CO and admin1 data - co_adm
+    # multiply embeddings by proportion
+    co_pct = 1 - adm_pct
+    co_df_mult = co_df.withColumn("arr", F.struct(*[(F.col(x) * co_pct).alias(x) for x in emb_cols])).select("STARTDATE", "ENDDATE", "ADMIN1", "arr.*")
+    adm_df_mult = adm_df.withColumn("arr", F.struct(*[(F.col(x) * adm_pct).alias(x) for x in emb_cols])).select("STARTDATE", "ENDDATE", "ADMIN1", "arr.*")
+
+    # join with df that has startdates with CO and admin1 data
+    adm_df_mult_mg = co_adm.select('STARTDATE','ADMIN1').join(adm_df_mult, on=['STARTDATE','ADMIN1'], how='left')
+
+    co = co_df_mult.select('STARTDATE', 'ADMIN1')
+    adm = adm_df_mult_mg.select('STARTDATE', 'ADMIN1')
+
+    mg = adm.alias('a').join(co.alias('c'), on=['STARTDATE'])
+    mg = mg.select('STARTDATE','a.ADMIN1','c.ADMIN1').toDF('STARTDATE_','ADMIN1_', 'ADMIN1_c')
+
+    co_df_mult_mg = mg.join(co_df_mult, (mg.ADMIN1_c==co_df_mult.ADMIN1) & (mg.STARTDATE_==co_df_mult.STARTDATE), how='left')
+    co_df_mult_mg = co_df_mult_mg.select('STARTDATE_', 'ADMIN1_', 'ENDDATE', *emb_cols).toDF('STARTDATE', 'ADMIN1', 'ENDDATE', *emb_cols)
+
+    m1 = adm_df_mult_mg.union(co_df_mult_mg)
+    m1 = m1.groupby(['STARTDATE','ENDDATE','ADMIN1']).agg(*[F.sum(c) for c in emb_cols])
+    m1 = m1.toDF('STARTDATE', 'ENDDATE', 'ADMIN1', *list(np.arange(emb_num).astype(str)))
+
+    # concat together
+    m = m1.union(m2).union(m3)
+    m = m.orderBy('STARTDATE', 'ADMIN1')
 
     # save
     m.write.mode('append').format('delta').saveAsTable("{}.{}".format(DATABASE_NAME, GDELT_EMBED_PROCESS_TABLE))
