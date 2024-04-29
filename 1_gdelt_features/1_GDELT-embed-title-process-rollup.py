@@ -65,6 +65,8 @@ for CO in COUNTRY_CODES:
     # read in events data and filter to date range
     evtslv = spark.sql(f"SELECT * FROM {DATABASE_NAME}.{GDELT_EVENT_PROCESS_TABLE} WHERE COUNTRY=='{CO}'")
     evtslv = evtslv.filter((evtslv['DATEADDED'] >= dt.datetime.strptime(START_DATE, '%Y-%m-%d').date()) & (evtslv['DATEADDED'] < dt.datetime.strptime(END_DATE, '%Y-%m-%d').date()))
+    # drop duplicates
+    evtslv = evtslv.dropDuplicates(subset = ['SOURCEURL'])
     # merge events and embeddings
     co = evtslv.join(emb, evtslv.SOURCEURL==emb.url, how='left')
     cols = ['DATEADDED', 'ADMIN1', 'COUNTRY', 'title'] 

@@ -1,7 +1,7 @@
 ##### define time 
 # dates: START_DATE and END_DATE must both be a Monday (weekday = 0)
-START_DATE = '2022-12-26'  # inclusive
-END_DATE = '2023-05-01'  # exclusive: download does not include this day 
+START_DATE = '2019-12-30'  # inclusive
+END_DATE = '2020-12-28'  # exclusive: download does not include this day 
 # number of weeks to aggregate
 N_WEEK = 1
 # number of lags
