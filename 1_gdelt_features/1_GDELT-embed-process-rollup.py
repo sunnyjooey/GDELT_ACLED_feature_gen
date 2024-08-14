@@ -144,6 +144,8 @@ for CO in COUNTRY_CODES:
     # concat together
     m = m1.union(m2).union(m3)
     m = m.orderBy('STARTDATE', 'ADMIN1')
+    m = m.withColumn('COUNTRY', F.lit(CO))
+    m = m.select('STARTDATE', 'ENDDATE', 'ADMIN1', 'COUNTRY', *list(np.arange(emb_num).astype(str)))
 
     # save
     m.write.mode('append').format('delta').saveAsTable("{}.{}".format(DATABASE_NAME, GDELT_EMBED_PROCESS_TABLE))

@@ -8,6 +8,7 @@ df = title_text.join(outcome, (outcome.STARTDATE==title_text.ENDDATE) & (outcome
 # COMMAND ----------
 
 import datetime as dt
+from dateutil.relativedelta import relativedelta
 from pyspark.sql import functions as F
 
 # COMMAND ----------
@@ -25,12 +26,22 @@ def filter_show(df, filter_dict):
         print(f"{start_date}, {adm1}, {co}; fatalities: {int(row['FATALSUM'])}, %increase: {round(row['pct_increase'], 1)}")
         print("The previous 1 week's titles")
         print(row['TITLE'])
+        print()
         print('-------------------------------')
+
+        next_date = dt.datetime.strptime(start_date, '%Y-%m-%d').date() + relativedelta(weeks=1)
+        print(f"The following {next_date} 1 week's titles")
+        next_row = df.filter((df['STARTDATE']==next_date) & (df['ADMIN1']==adm1) & (df['COUNTRY']==co))
+        print(f"The week following's fatalities: {int(next_row.select(F.col('FATALSUM')).first().FATALSUM)}")
+        print("The week following's titles")
+        print(next_row.select(F.col('TITLE')).first().TITLE)
+        print()
+        print('===============================')
 
         # get previous time interval info
         prev_date = str((dt.datetime.strptime(start_date, '%Y-%m-%d') - dt.timedelta(weeks=1)).date())        
         df_sub = df.filter((df['STARTDATE']==prev_date) & (df['ADMIN1']==adm1) & (df['COUNTRY']==co))
-        print(f"The week prior's fatalities: {int(df_sub.select(F.col('FATALSUM')).first().FATALSUM)}")
+        print(f"The week prior's {prev_date} fatalities: {int(df_sub.select(F.col('FATALSUM')).first().FATALSUM)}")
         print("The week prior's titles")
         print(df_sub.select(F.col('TITLE')).first().TITLE)
         print()

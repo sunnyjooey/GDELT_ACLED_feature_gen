@@ -20,14 +20,14 @@ import mlflow
 import databricks.automl_runtime
 
 # CREATE MLFLOW EXPERIMENT FIRST
-EXP_ID = "1723342686504342"
+EXP_ID = "3050380669319955"
 
 # COMMAND ----------
 
 # designate here
-database_name = "horn_africa_forecast"
-data_table = ""
-target_col = "binary_escalation_30"
+database_name = "horn_africa_forecast_base"
+data_table = "cameo1_titlefill_sumfat_1w_popdense_conftrend_mod"
+target_col = "bin_esc_30"
 time_col = "STARTDATE"
 
 # number of embeddings in each set of lags (full is 512, can be less if using PCA data)

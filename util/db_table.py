@@ -1,7 +1,7 @@
 ##### define time 
 # dates: START_DATE and END_DATE must both be a Monday (weekday = 0)
 START_DATE = '2019-12-30'  # inclusive
-END_DATE = '2020-12-28'  # exclusive: download does not include this day 
+END_DATE = '2023-05-01'  # exclusive: download does not include this day 
 # number of weeks to aggregate
 N_WEEK = 1
 # number of lags
@@ -9,7 +9,7 @@ N_LAGS = 4
 
 
 ##### define database
-DATABASE_NAME = 'horn_africa_forecast_test'
+DATABASE_NAME = 'horn_africa_forecast_base'
 
 ##### define tables
 # GDELT BRZ (raw)

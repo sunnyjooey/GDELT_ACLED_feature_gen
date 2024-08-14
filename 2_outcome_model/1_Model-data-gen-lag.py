@@ -48,14 +48,14 @@ from pyspark.sql.functions import date_format, col
 import sys
 sys.path.append('../util')
 
-from db_table import START_DATE, END_DATE, DATABASE_NAME, MODEL_TABLE_NAME, GDELT_TITLE_FILL_TABLE, ACLED_CONFL_HIST_1_TABLE, ACLED_CONFL_TREND_TABLE, GEO_POP_DENSE_AGESEX_TABLE, ACLED_OUTCOME_TABLE
+from db_table import START_DATE, END_DATE, DATABASE_NAME, MODEL_TABLE_NAME, GDELT_EMBED_PROCESS_LAG_TABLE, ACLED_CONFL_HIST_1_TABLE, ACLED_CONFL_TREND_TABLE, GEO_POP_DENSE_AGESEX_TABLE, ACLED_OUTCOME_TABLE
 
 # COMMAND ----------
 
 # read-in data
 outcome = spark.sql(f"SELECT * FROM {DATABASE_NAME}.{ACLED_OUTCOME_TABLE}")
 conflict_hist = spark.sql(f"SELECT * FROM {DATABASE_NAME}.{ACLED_CONFL_HIST_1_TABLE}")
-title_text = spark.sql(f"SELECT * FROM {DATABASE_NAME}.{GDELT_TITLE_FILL_TABLE}")
+embed = spark.sql(f"SELECT * FROM {DATABASE_NAME}.{GDELT_EMBED_PROCESS_LAG_TABLE}")
 pop_dense = spark.sql(f"SELECT * FROM {DATABASE_NAME}.{GEO_POP_DENSE_AGESEX_TABLE}")
 trend_category = spark.sql(f"SELECT * FROM {DATABASE_NAME}.{ACLED_CONFL_TREND_TABLE}")
 
@@ -64,11 +64,11 @@ trend_category = spark.sql(f"SELECT * FROM {DATABASE_NAME}.{ACLED_CONFL_TREND_TA
 # make sure dates are uniform before joining
 outcome = outcome.withColumn("STARTDATE", date_format(col("STARTDATE"), "yyyy-MM-dd"))
 conflict_hist = conflict_hist.withColumn("STARTDATE", date_format(col("STARTDATE"), "yyyy-MM-dd"))
-title_text = title_text.withColumn("ENDDATE", date_format(col("ENDDATE"), "yyyy-MM-dd"))
+embed = embed.withColumn("ENDDATE", date_format(col("ENDDATE"), "yyyy-MM-dd"))
 # count of rows
 print(outcome.count())
 print(conflict_hist.count())
-# print(title_text.count())
+print(embed.count())
 
 # COMMAND ----------
 
@@ -89,7 +89,7 @@ print(trend_category.count())
 # COMMAND ----------
 
 # join conflict history and text features
-m1 = conflict_hist.join(title_text, (conflict_hist.STARTDATE==title_text.STARTDATE) & (conflict_hist.ADMIN1==title_text.ADMIN1) & (conflict_hist.COUNTRY==title_text.COUNTRY)).drop(title_text.STARTDATE).drop(title_text.ENDDATE).drop(title_text.ADMIN1).drop(title_text.COUNTRY)
+m1 = conflict_hist.join(embed, (conflict_hist.STARTDATE==embed.STARTDATE) & (conflict_hist.ADMIN1==embed.ADMIN1) & (conflict_hist.COUNTRY==embed.COUNTRY)).drop(embed.STARTDATE).drop(embed.ENDDATE).drop(embed.ADMIN1).drop(embed.COUNTRY)
 print(m1.count())
 
 # COMMAND ----------
@@ -119,7 +119,7 @@ print(m3.count())
 
 # COMMAND ----------
 
-display(m3)
+# display(m3)
 
 # COMMAND ----------
 
