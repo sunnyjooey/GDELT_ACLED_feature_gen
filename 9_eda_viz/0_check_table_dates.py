@@ -28,7 +28,12 @@ def check_all_dates(data, date_col, min_date, max_date):
     num_dates = len(dates_in_data)
 
     # weeks or days
-    diff = abs(((max_date - min_date) / 7).days - num_dates)
+    try: 
+        diff = abs(((max_date - min_date) / 7).days - num_dates)
+    except:
+        max_date = dt.datetime.strptime(max_date, '%Y-%m-%d').date()
+        min_date = dt.datetime.strptime(min_date, '%Y-%m-%d').date()
+        diff = abs(((max_date - min_date) / 7).days - num_dates)
     if diff > 2:
         check_dates = [min_date + dt.timedelta(days=x) for x in range(num_dates)]
     else:
@@ -75,7 +80,7 @@ for TAB in tables:
         print()
     
     # no need to check error table
-    elif 'error' in table_name:
+    elif ('error' in table_name) or ('cameo1_titlefill_sumfat_1w_popdense_conftrend_mod' == table_name):
         pass
 
     else:

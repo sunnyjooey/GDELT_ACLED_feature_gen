@@ -1,6 +1,6 @@
 ##### define time 
 # dates: START_DATE and END_DATE must both be a Monday (weekday = 0)
-START_DATE = '2023-05-01'  # inclusive
+START_DATE = '2019-12-30'  # inclusive
 END_DATE = '2024-07-01'  # exclusive: download does not include this day 
 # number of weeks to aggregate
 N_WEEK = 1
